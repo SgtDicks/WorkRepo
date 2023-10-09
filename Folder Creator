@@ -2,7 +2,6 @@ import os
 import tkinter as tk
 import json
 from tkinter import filedialog, ttk
-
 global directory_entry 
 
 
@@ -24,14 +23,10 @@ def save_checked_options():
     for item in tree.get_children():
         folder_name, is_checked = tree.item(item, "values")
         is_checked = is_checked == 'True' if is_checked in ['True', 'False'] else bool(int(is_checked))
-        print(f"Folder: {folder_name}, Checked: {is_checked}")  # Print each folder's name and checked state
         if is_checked:
             subfolders = [tree.item(child, "values")[0] for child in tree.get_children(item) 
                           if tree.item(child, "values")[1] == 'True' or tree.item(child, "values")[1] == '1']
-            print(f"Subfolders: {subfolders}")  # Print the checked subfolders
             checked_options[folder_name] = subfolders
-    
-    print(checked_options)  # Print the final checked_options dictionary
 
     file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
     if file_path:
@@ -115,14 +110,22 @@ def create_folders(root_folder, directory):
 
 
 def browse_directory():
+    # Opening a dialog to select a directory and storing the selected directory path
     folder_selected = filedialog.askdirectory()
-    path_entry.delete(0, tk.END)
-    path_entry.insert(0, folder_selected)
+    
+    # If a folder is selected (if folder_selected is not an empty string)
+    if folder_selected:
+        # Clearing any existing text in the directory_entry
+        directory_entry.delete(0, tk.END)
+        
+        # Inserting the path of the selected folder into the directory_entry
+        directory_entry.insert(0, folder_selected)
+
 
 
 def on_create_folders():
     root_folder = root_folder_entry.get() or "Root Folder"
-    directory = path_entry.get()  # Retrieve directory from path_entry
+    directory = directory_entry.get()  # Retrieve directory from directory_entry
     create_folders(root_folder, directory)
 
 
@@ -135,11 +138,51 @@ root.title("Folder Creator")
 tree_label = tk.Label(root, text="Folder Checklist", font=("Arial", 12))
 tree_label.pack(padx=20, pady=(20, 0))  # Adjust the padding as needed
 
-tree = ttk.Treeview(root, columns=("Folder Name", "Check"))
+tree = ttk.Treeview(root, columns=("Folder Name", "Check"), show='tree')
 tree.heading("#1", text="Folder Name")
 tree.column("#1", width=0, stretch=tk.NO)
 tree.heading("#2", text="Check")
 tree.column("#2", width=0, stretch=tk.NO)
+# Create a vertical scrollbar
+scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+tree.configure(yscrollcommand=scrollbar.set)
+
+# Creating the main menu bar
+menubar = tk.Menu(root)
+
+# Creating the File menu
+filemenu = tk.Menu(menubar, tearoff=0)
+
+# Adding Save option to the File menu
+filemenu.add_command(label="Save", command=save_checked_options)
+
+# Adding Load option to the File menu
+filemenu.add_command(label="Load", command=load_checked_options)
+
+# Adding a separator
+filemenu.add_separator()
+
+# Creating the Help menu
+helpmenu = tk.Menu(menubar, tearoff=0)
+
+# Function to display the About dialog
+def show_about_dialog():
+    tk.messagebox.showinfo("About", "This is a RPI Project folder creator.\nVersion: 1.0 \nCreated by \nAaron Bycroft")
+
+# Adding an About option to the Help menu
+helpmenu.add_command(label="About", command=show_about_dialog)
+
+# Adding the File menu to the menu bar
+menubar.add_cascade(label="File", menu=filemenu)
+
+# Adding the Help menu to the menu bar
+menubar.add_cascade(label="Help", menu=helpmenu)
+
+# Adding the menu bar to the main window
+root.config(menu=menubar)
+
 
 # Add items (folders) to the treeview with your provided folder structure
 folders = [
@@ -378,6 +421,8 @@ root_folder_entry = tk.Entry(root_folder_frame)  # Define the root_folder_entry 
 root_folder_entry.pack(fill="x", expand=True, side=tk.LEFT)  # Make the entry expand with the window
 
 # Directory Path
+
+
 directory_frame = tk.Frame(root)  # Create a new frame for the directory widgets
 directory_frame.pack(fill="x", padx=20, pady=5)  # Pack the frame
 
@@ -396,12 +441,6 @@ buttons_frame.pack(fill="x", padx=20, pady=5)  # Pack the frame
 
 create_folders_button = tk.Button(buttons_frame, text="Create Folders", command=on_create_folders)
 create_folders_button.pack(side=tk.LEFT)
-
-save_checked_button = tk.Button(buttons_frame, text="Save Checked Options", command=save_checked_options)
-save_checked_button.pack(side=tk.LEFT)
-
-load_checked_button = tk.Button(buttons_frame, text="Load Checked Options", command=load_checked_options)
-load_checked_button.pack(side=tk.LEFT)
 
 # Status Label
 status_label = tk.Label(root, text="", wraplength=500)
