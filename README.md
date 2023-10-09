@@ -153,4 +153,4 @@ License
 
 ---
 
-**Note:** Replace `"https://github.com/yourusername/folder-creator.git"` with the actual URL of your GitHub repository. Ensure to also include a screenshot of your application to make the README visually appealing.
+**Note:** Replace `"https://github.com/Sgt.Dicks/folder-creator.git"` with the actual URL of your GitHub repository. Ensure to also include a screenshot of your application to make the README visually appealing.
