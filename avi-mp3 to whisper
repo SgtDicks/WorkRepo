@@ -1,0 +1,75 @@
+import tkinter as tk
+from tkinter import filedialog, scrolledtext
+from openai import OpenAI
+import subprocess
+import os
+
+def extract_audio(mp4_file, output_file="temp_audio.mp3"):
+    try:
+        subprocess.run(["ffmpeg", "-i", mp4_file, "-q:a", "0", "-map", "a", output_file], check=True)
+        return output_file
+    except subprocess.CalledProcessError as e:
+        status_label.config(text=f"Error in audio extraction: {e}")
+        return None
+
+def select_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Audio/Video Files", "*.mp3 *.mp4")])
+    file_path_label.config(text=file_path)
+    return file_path
+
+def transcribe():
+    status_label.config(text="Processing...")
+    file_path = file_path_label.cget("text")
+    if file_path.endswith('.mp4'):
+        audio_file = extract_audio(file_path)
+        if audio_file is None:
+            return
+    else:
+        audio_file = file_path
+
+    try:
+        with open(audio_file, "rb") as file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1", 
+                file=file
+            )
+        transcript_display.config(state='normal')
+        transcript_display.delete(1.0, tk.END)
+        transcript_display.insert(tk.END, transcript)
+        transcript_display.config(state='disabled')
+        status_label.config(text="Transcription Completed")
+    except Exception as e:
+        status_label.config(text=f"Error: {e}")
+    finally:
+        if file_path.endswith('.mp4'):
+            os.remove(audio_file)  # Clean up temporary audio file
+
+# Setup the main window
+root = tk.Tk()
+root.title("Audio/Video Transcription")
+###################################################################################Replace the API Key below ###################################################################################
+# OpenAI Client
+api_key = 'APIAPIAPIAPIAPIAPIAPIAPIAPIAPIAAPIAPIAPIA'
+client = OpenAI(api_key=api_key)
+
+# File Selection
+file_path_label = tk.Label(root, text="No file selected", padx=10, pady=10)
+file_path_label.pack()
+file_select_button = tk.Button(root, text="Select Audio/Video File", command=select_file, padx=10)
+file_select_button.pack()
+
+# Transcribe Button
+transcribe_button = tk.Button(root, text="Transcribe", command=transcribe, padx=10)
+transcribe_button.pack()
+
+# Status Label
+status_label = tk.Label(root, text="", padx=10, pady=10)
+status_label.pack()
+
+# Transcript Display with Scrollbar
+transcript_display = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=10, font=("Courier", 10), padx=10, pady=10, state='disabled')
+transcript_display.pack(padx=10, pady=10)
+
+# Run the application
+root.mainloop()
+
