@@ -13,6 +13,10 @@ A Python and Tkinter-based application to create and manage folder structures wi
 - Check and uncheck folders.
 - Create folders based on the defined structure.
 
+### Prerequisites:
+- Python 3.x
+- Tkinter (usually comes with Python, but ensure it's installed)
+
 ### Usage:
 1. Run the script.
 2. Use the GUI to manage folder structures.
@@ -32,6 +36,9 @@ A script to check folder inheritance and generate a report.
 - Prompts user for directory and depth of search.
 - Outputs HTML report of folder inheritance status.
 
+### Prerequisites:
+- PowerShell
+
 ### Usage:
 1. Run the script.
 2. Follow prompts to provide directory and depth.
@@ -50,6 +57,11 @@ A script to attempt to unlock a password-protected Word document using a list of
 ### Features:
 - Loads passwords from a text file.
 - Tries each password until the correct one is found.
+
+### Prerequisites:
+- Python 3.x
+- Tkinter
+- msoffcrypto (install via `pip install msoffcrypto-tool`)
 
 ### Usage:
 1. Run the script.
@@ -71,6 +83,12 @@ A tool for transcribing audio or video files using OpenAI's Whisper model.
 - Uses OpenAI's API for transcription.
 - Displays the transcription in a GUI.
 
+### Prerequisites:
+- Python 3.x
+- Tkinter
+- ffmpeg (must be installed and added to PATH)
+- OpenAI API key
+
 ### Usage:
 1. Set your OpenAI API key.
 2. Run the script.
@@ -90,6 +108,9 @@ A script to export folder permissions into an HTML report.
 - Prompts user for directory and depth of search.
 - Outputs detailed HTML report of folder permissions.
 
+### Prerequisites:
+- PowerShell
+
 ### Usage:
 1. Run the script.
 2. Follow prompts to provide directory and depth.
@@ -108,6 +129,10 @@ A script to download the latest video from a specified YouTube channel.
 ### Features:
 - Downloads the latest video if it doesn't already exist in the output directory.
 
+### Prerequisites:
+- PowerShell
+- youtube-dl (must be installed and added to PATH)
+
 ### Usage:
 1. Set the path to the youtube-dl executable, channel URL, and output directory.
 2. Run the script.
@@ -124,6 +149,11 @@ A script to replace ringtones in MiCollab.
 
 ### Features:
 - Replaces default ringtones with custom ones.
+
+### Prerequisites:
+- Python 3.x
+- Tkinter
+- shutil (part of the Python standard library)
 
 ### Usage:
 1. Run the script.
