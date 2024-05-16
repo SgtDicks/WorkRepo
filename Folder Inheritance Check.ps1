@@ -85,7 +85,9 @@ function Get-FolderPermissions {
             # Create a custom object to store the relevant information
             $permissionsData.Add([PSCustomObject]@{
                 Folder        = $folder.FolderPath
+                Depth         = $folder.Depth
                 Inheritance   = $inheritanceStatus
+                Id            = [Guid]::NewGuid().ToString()
             })
         } catch {
             Write-Warning "Failed to get ACL for folder: $($folder.FolderPath). Error: $($_.Exception.Message)"
@@ -108,7 +110,14 @@ $htmlHeader = @"
         body { font-family: Arial, sans-serif; }
         .folder-path { padding: 10px; }
         .inherited { color: green; }
-        .broken { color: red; }
+        .broken { color: red; cursor: pointer; }
+        .indent-0 { margin-left: 0; }
+        .indent-1 { margin-left: 20px; }
+        .indent-2 { margin-left: 40px; }
+        .indent-3 { margin-left: 60px; }
+        .indent-4 { margin-left: 80px; }
+        .indent-5 { margin-left: 100px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -125,34 +134,24 @@ $htmlFooter = @"
         </table>
     </div>
     <script>
-        function togglePermissions(id) {
-            var content = document.getElementById(id);
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-            } else {
-                content.style.display = 'none';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var headers = document.querySelectorAll('.identity-header');
-            headers.forEach(function(header) {
-                header.addEventListener('click', function() {
-                    var content = header.nextElementSibling;
-                    if (content.style.display === 'block') {
-                        content.style.display = 'none';
+        function toggleVisibility(event) {
+            const target = event.target;
+            if (target.classList.contains('broken')) {
+                const id = target.getAttribute('data-id');
+                const childRows = document.querySelectorAll(`tr[data-parent='${id}']`);
+                childRows.forEach(row => {
+                    if (row.style.display === 'none') {
+                        row.style.display = '';
                     } else {
-                        content.style.display = 'block';
+                        row.style.display = 'none';
                     }
                 });
-            });
-
-            var brokenLinks = document.querySelectorAll('.broken');
-            brokenLinks.forEach(function(link) {
-                link.addEventListener('click', function() {
-                    var id = link.getAttribute('data-id');
-                    togglePermissions(id);
-                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const brokenElements = document.querySelectorAll('.broken');
+            brokenElements.forEach(element => {
+                element.addEventListener('click', toggleVisibility);
             });
         });
     </script>
@@ -164,8 +163,12 @@ $htmlContent = ""
 
 foreach ($item in $permissionsData) {
     $inheritanceClass = if ($item.Inheritance -eq "Inherited") { "inherited" } else { "broken" }
-    $htmlContent += "<tr>"
-    $htmlContent += "<td class='folder-path'>$($item.Folder)</td>"
+    $indentClass = "indent-" + [math]::Min($item.Depth, 5)
+    $depthClass = "depth-" + $item.Depth
+    $visibilityClass = if ($item.Depth -gt 2) { "hidden" } else { "" }
+    $parentId = ($permissionsData | Where-Object { $_.FolderPath -eq [System.IO.Path]::GetDirectoryName($item.Folder) }).Id
+    $htmlContent += "<tr class='$depthClass $visibilityClass' data-parent='$parentId'>"
+    $htmlContent += "<td class='folder-path $indentClass $inheritanceClass' data-id='$item.Id'>$($item.Folder)</td>"
     $htmlContent += "<td class='$inheritanceClass'>$($item.Inheritance)</td>"
     $htmlContent += "</tr>"
 }
