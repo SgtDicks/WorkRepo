@@ -1,154 +1,140 @@
-### Folder Creator Application Help Document
 
-#### **1\. Overview:**
+# WorkRepo
 
-The Folder Creator Application is a user-friendly tool designed to facilitate the efficient creation and organization of folder structures. With an intuitive graphical user interface, users can easily select, customize, and create folders according to their specific needs.
+This repository contains various scripts and tools for different tasks, such as folder management, password cracking, audio transcription, and more. Below is an overview of each script included in this repository.
 
-#### **2\. Features:**
+## Folder Creator Application
 
-*   **Interactive Folder Tree:** Displays a hierarchical tree structure, allowing users to select and customize folders.
-*   **Save & Load Options:** Enables users to save their customized folder selections and load them later.
-*   **Help Menu:** Provides quick access to the application's help and about information.
+### Description:
+A Python and Tkinter-based application to create and manage folder structures with specific states.
 
-#### **3\. Using the Folder Creator Application:**
+### Features:
+- Save and load folder states.
+- Check and uncheck folders.
+- Create folders based on the defined structure.
 
-##### **3.1 Navigating the Folder Tree:**
+### Usage:
+1. Run the script.
+2. Use the GUI to manage folder structures.
+3. Save and load folder states as needed.
 
-1.  **Selecting Folders:** Click on the checkboxes next to folder names to select or deselect them.
-2.  **Expanding/Collapsing Folders:** Click on the folder icons to expand or collapse the view of subfolders.
-
-##### **3.2 Using the Save & Load Options:**
-
-*   **Save:**
-    
-    *   Click on `File > Save` in the menu bar.
-    *   Choose the location to save the JSON file containing your selected folder structure.
-    *   Click `Save`.
-*   **Load:**
-    
-    *   Click on `File > Load` in the menu bar.
-    *   Select the JSON file containing the previously saved folder structure.
-    *   Click `Open`.
-
-##### **3.3 Creating Folders:**
-
-1.  **Select the Directory:**
-    
-    *   Click the `Browse` button.
-    *   Navigate to the location where you want to create the folders.
-    *   Click `OK`.
-2.  **Enter the Root Folder Name:** (Optional)
-    
-    *   Enter a name for the root folder in the provided text box.
-3.  **Create Folders:**
-    
-    *   Click the `Create Folders` button to generate the folder structure in the specified directory.
-
-#### **4\. Menu Options:**
-
-*   **File Menu:**
-    
-    *   **Save:** Saves the current folder selection to a JSON file for later use.
-    *   **Load:** Loads a previously saved folder selection from a JSON file.
-*   **Help Menu:**
-    
-    *   **About:** Displays information about the application, including the version number.
-
-#### **5\. Troubleshooting:**
-
-*   **Issue:** The application does not respond when attempting to create folders.
-    
-    *   **Solution:** Ensure that you have selected a valid directory and have the necessary permissions to create folders in the specified location.
-*   **Issue:** The saved folder selections are not loaded correctly.
-    
-    *   **Solution:** Ensure that the JSON file being loaded is not corrupted and is in the correct format.
-
-#### **6\. Contact Information:**
-
-For additional assistance or to report bugs, please contact support at [support@foldercreatorapp.com](mailto:support@foldercreatorapp.com).
-
----
-
-### **End of Document**
-
-You can customize this help document as per your application's specific features and requirements. Consider converting it to a PDF or other accessible formats and include a link to it in your application for easy access by the users.
-
-> 1 / 1
-> 
-> create a REAM.me file for github
-
-1 / 1
-
-Certainly! Below is a sample README.md file that you can use for your GitHub repository hosting the Folder Creator application.
-
----
-
-### README.md
-
----
-
-Folder Creator Application
-==========================
-
-**Folder Creator** is a Python-based application built with Tkinter that allows users to easily create and manage folder structures. It provides an interactive UI, enabling the selection of various predefined folder structures, customization of folder selections, and generation of these folders in a specified directory.
-
-Features
---------
-
-*   **Interactive UI:** Easily select and customize folders.
-*   **Save & Load:** Save your folder selections and load them for future use.
-*   **Help Menu:** Access the application’s help and about information directly from the UI.
-
-Installation
-------------
-
-### Prerequisites
-
-*   Python 3.x
-*   Tkinter (usually comes pre-installed with Python)
-
-### Steps
-
-1.  Clone the repository:
-
-bash
-
-```bash
-git clone https://github.com/SgtDicks/WorkRepo/folder-creator.git
-```
-
-2.  Navigate to the cloned repository:
-
-bash
-
-```bash
-cd folder-creator
-```
-
-3.  Run the application:
-
-bash
-
+### Example:
 ```bash
 python folder_creator.py
 ```
 
-Usage
------
+## Folder Inheritance Check (PowerShell)
 
-*   **Select Folders:** Click on the checkboxes next to folder names to select or deselect them.
-*   **Save Selection:** Go to `File > Save` to save the current folder selection.
-*   **Load Selection:** Go to `File > Load` to load a previously saved folder selection.
-*   **Create Folders:** Enter the root folder name (optional), browse to the desired directory, and click `Create Folders`.
+### Description:
+A script to check folder inheritance and generate a report.
 
-Contributing
-------------
+### Features:
+- Prompts user for directory and depth of search.
+- Outputs HTML report of folder inheritance status.
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+### Usage:
+1. Run the script.
+2. Follow prompts to provide directory and depth.
+3. View the generated HTML report.
 
-License
--------
+### Example:
+```bash
+powershell -File folder_inheritance_check.ps1
+```
 
-[MIT](https://choosealicense.com/licenses/mit/)
+## Word Password Cracker (Python)
+
+### Description:
+A script to attempt to unlock a password-protected Word document using a list of passwords.
+
+### Features:
+- Loads passwords from a text file.
+- Tries each password until the correct one is found.
+
+### Usage:
+1. Run the script.
+2. Select the Word document and password list.
+3. Monitor progress and results via the GUI.
+
+### Example:
+```bash
+python word_password_crack.py
+```
+
+## Audio/Video Transcription (Python)
+
+### Description:
+A tool for transcribing audio or video files using OpenAI's Whisper model.
+
+### Features:
+- Extracts audio from video files.
+- Uses OpenAI's API for transcription.
+- Displays the transcription in a GUI.
+
+### Usage:
+1. Set your OpenAI API key.
+2. Run the script.
+3. Select the audio/video file and start the transcription.
+
+### Example:
+```bash
+python avi_mp3_to_whisper.py
+```
+
+## Folder Permissions Export (PowerShell)
+
+### Description:
+A script to export folder permissions into an HTML report.
+
+### Features:
+- Prompts user for directory and depth of search.
+- Outputs detailed HTML report of folder permissions.
+
+### Usage:
+1. Run the script.
+2. Follow prompts to provide directory and depth.
+3. View the generated HTML report.
+
+### Example:
+```bash
+powershell -File folder_permissions_export.ps1
+```
+
+## Latest YouTube Downloader (PowerShell)
+
+### Description:
+A script to download the latest video from a specified YouTube channel.
+
+### Features:
+- Downloads the latest video if it doesn't already exist in the output directory.
+
+### Usage:
+1. Set the path to the youtube-dl executable, channel URL, and output directory.
+2. Run the script.
+
+### Example:
+```bash
+powershell -File latest_youtube_downloader.ps1
+```
+
+## MiCollab Ringtone Replacer (Python)
+
+### Description:
+A script to replace ringtones in MiCollab.
+
+### Features:
+- Replaces default ringtones with custom ones.
+
+### Usage:
+1. Run the script.
+2. Select the audio file to use as a ringtone.
+3. Apply the changes.
+
+### Example:
+```bash
+python micollab_ringtone_replacer.py
+```
 
 ---
+
+For detailed instructions and examples, refer to the comments within each script. Ensure all dependencies are installed before running the scripts.
