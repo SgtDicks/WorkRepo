@@ -17,6 +17,11 @@ A Python and Tkinter-based application to create and manage folder structures wi
 - Python 3.x
 - Tkinter (usually comes with Python, but ensure it's installed)
 
+### Installation:
+```bash
+pip install tk
+```
+
 ### Usage:
 1. Run the script.
 2. Use the GUI to manage folder structures.
@@ -61,7 +66,12 @@ A script to attempt to unlock a password-protected Word document using a list of
 ### Prerequisites:
 - Python 3.x
 - Tkinter
-- msoffcrypto (install via `pip install msoffcrypto-tool`)
+- msoffcrypto
+
+### Installation:
+```bash
+pip install tk msoffcrypto-tool
+```
 
 ### Usage:
 1. Run the script.
@@ -86,8 +96,15 @@ A tool for transcribing audio or video files using OpenAI's Whisper model.
 ### Prerequisites:
 - Python 3.x
 - Tkinter
-- ffmpeg (must be installed and added to PATH)
-- OpenAI API key
+- ffmpeg
+- openai
+
+### Installation:
+1. Install ffmpeg from https://ffmpeg.org/download.html and add it to your PATH.
+2. Install Python packages:
+```bash
+pip install tk openai
+```
 
 ### Usage:
 1. Set your OpenAI API key.
@@ -131,7 +148,11 @@ A script to download the latest video from a specified YouTube channel.
 
 ### Prerequisites:
 - PowerShell
-- youtube-dl (must be installed and added to PATH)
+- youtube-dl
+
+### Installation:
+1. Install youtube-dl from https://youtube-dl.org/
+2. Ensure youtube-dl is added to your PATH.
 
 ### Usage:
 1. Set the path to the youtube-dl executable, channel URL, and output directory.
@@ -154,6 +175,11 @@ A script to replace ringtones in MiCollab.
 - Python 3.x
 - Tkinter
 - shutil (part of the Python standard library)
+
+### Installation:
+```bash
+pip install tk
+```
 
 ### Usage:
 1. Run the script.
