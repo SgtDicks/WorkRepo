@@ -97,7 +97,7 @@ A tool for transcribing audio or video files using OpenAI's Whisper model.
 - Python 3.x
 - Tkinter
 - ffmpeg
-- openai
+- OpenAI API Key
 
 ### Installation:
 1. Install ffmpeg from https://ffmpeg.org/download.html and add it to your PATH.
