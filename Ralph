@@ -1,0 +1,229 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import requests
+
+RALPH_URL = 'http://192.168.20.41'
+API_TOKEN = '81ec9623bf5a0def010def81d66468e532293ecd'
+HEADERS = {
+    'Authorization': f'Token {API_TOKEN}',
+    'Content-Type': 'application/json'
+}
+
+# Predefined regions and warehouses
+REGIONS = {
+    "Melbourne Airport": 6,
+    "Sydney": 5,
+    "Townsville": 4,
+    "Melbourne": 3,
+    "Mackay": 2,
+    "Brisbane": 1
+}
+
+WAREHOUSES = {
+    "Townsville": 6,
+    "Sydney": 7,
+    "Melbourne Airport": 8,
+    "Melbourne": 5,
+    "Mackay": 4,
+    "Caboolture": 3,
+    "Brisbane": 2
+}
+
+class RalphGUI(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Ralph Manager")
+
+        # Create tab control
+        tabControl = ttk.Notebook(self)
+        tabControl.pack(expand=1, fill="both")
+
+        # Create tabs
+        self.add_user_tab = ttk.Frame(tabControl)
+        self.add_laptop_tab = ttk.Frame(tabControl)
+        tabControl.add(self.add_user_tab, text='Add User')
+        tabControl.add(self.add_laptop_tab, text='Add Laptop')
+
+        # Add content to tabs
+        self.create_add_user_tab()
+        self.create_add_laptop_tab()
+
+    def create_add_user_tab(self):
+        tk.Label(self.add_user_tab, text="Username:").grid(row=0, column=0, padx=10, pady=10)
+        self.username_entry = tk.Entry(self.add_user_tab)
+        self.username_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_user_tab, text="First Name:").grid(row=1, column=0, padx=10, pady=10)
+        self.firstname_entry = tk.Entry(self.add_user_tab)
+        self.firstname_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_user_tab, text="Last Name:").grid(row=2, column=0, padx=10, pady=10)
+        self.lastname_entry = tk.Entry(self.add_user_tab)
+        self.lastname_entry.grid(row=2, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_user_tab, text="Email:").grid(row=3, column=0, padx=10, pady=10)
+        self.email_entry = tk.Entry(self.add_user_tab)
+        self.email_entry.grid(row=3, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_user_tab, text="Select Laptop Model:").grid(row=4, column=0, padx=10, pady=10)
+        self.laptop_model_combo = ttk.Combobox(self.add_user_tab, state="readonly")
+        self.laptop_model_combo.grid(row=4, column=1, padx=10, pady=10)
+        self.update_laptop_models()
+
+        tk.Button(self.add_user_tab, text="Add User", command=self.add_user).grid(row=5, column=0, columnspan=2, pady=10)
+
+    def create_add_laptop_tab(self):
+        tk.Label(self.add_laptop_tab, text="Model Name:").grid(row=0, column=0, padx=10, pady=10)
+        self.model_combo = ttk.Combobox(self.add_laptop_tab, state="readonly")
+        self.model_combo.grid(row=0, column=1, padx=10, pady=10)
+        self.update_models()
+
+        tk.Label(self.add_laptop_tab, text="Serial Number:").grid(row=1, column=0, padx=10, pady=10)
+        self.sn_entry = tk.Entry(self.add_laptop_tab)
+        self.sn_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_laptop_tab, text="Barcode:").grid(row=2, column=0, padx=10, pady=10)
+        self.barcode_entry = tk.Entry(self.add_laptop_tab)
+        self.barcode_entry.grid(row=2, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_laptop_tab, text="Region:").grid(row=3, column=0, padx=10, pady=10)
+        self.region_combo = ttk.Combobox(self.add_laptop_tab, state="readonly")
+        self.region_combo['values'] = list(REGIONS.keys())
+        self.region_combo.grid(row=3, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_laptop_tab, text="Warehouse:").grid(row=4, column=0, padx=10, pady=10)
+        self.warehouse_combo = ttk.Combobox(self.add_laptop_tab, state="readonly")
+        self.warehouse_combo['values'] = list(WAREHOUSES.keys())
+        self.warehouse_combo.grid(row=4, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_laptop_tab, text="Price:").grid(row=5, column=0, padx=10, pady=10)
+        self.price_entry = tk.Entry(self.add_laptop_tab)
+        self.price_entry.grid(row=5, column=1, padx=10, pady=10)
+
+        tk.Label(self.add_laptop_tab, text="Price Currency:").grid(row=6, column=0, padx=10, pady=10)
+        self.price_currency_entry = tk.Entry(self.add_laptop_tab)
+        self.price_currency_entry.grid(row=6, column=1, padx=10, pady=10)
+
+        tk.Button(self.add_laptop_tab, text="Add Laptop", command=self.add_laptop).grid(row=7, column=0, columnspan=2, pady=10)
+
+    def update_laptop_models(self):
+        laptop_models = self.fetch_available_laptop_models()
+        if laptop_models:
+            model_names = [model['model']['name'] for model in laptop_models]
+            self.laptop_model_combo['values'] = model_names
+        else:
+            self.laptop_model_combo['values'] = []
+
+    def fetch_available_laptop_models(self):
+        try:
+            response = requests.get(f'{RALPH_URL}/api/back-office-assets/', headers=HEADERS)
+            if response.status_code == 200:
+                assets = response.json().get('results', [])
+                free_assets = [asset for asset in assets if asset['status'] == 'free' and asset.get('owner') is None]
+                if not free_assets:
+                    print("No available laptops found.")
+                return free_assets
+            else:
+                messagebox.showerror("Error", f"Failed to fetch laptop models: {response.text}")
+                return []
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+            return []
+
+    def update_models(self):
+        try:
+            response = requests.get(f'{RALPH_URL}/api/asset-models/', headers=HEADERS)
+            if response.status_code == 200:
+                models = response.json().get('results', [])
+                model_names = {model['name']: model['id'] for model in models}
+                self.model_combo['values'] = list(model_names.keys())
+                self.model_map = model_names
+            else:
+                messagebox.showerror("Error", f"Failed to fetch models: {response.text}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def add_user(self):
+        username = self.username_entry.get()
+        first_name = self.firstname_entry.get()
+        last_name = self.lastname_entry.get()
+        email = self.email_entry.get()
+        selected_laptop_model = self.laptop_model_combo.get()
+
+        if not username or not first_name or not last_name or not email or not selected_laptop_model:
+            messagebox.showerror("Error", "All fields are required")
+            return
+
+        password = username  # Set the password to be the same as the username
+
+        data = {
+            "username": username,
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "password": password
+        }
+
+        try:
+            response = requests.post(f'{RALPH_URL}/api/users/', headers=HEADERS, json=data)
+            if response.status_code == 201:
+                user_id = response.json()['id']
+                # Find the selected laptop model and assign it to the user
+                laptop_models = self.fetch_available_laptop_models()
+                for model in laptop_models:
+                    if model['model']['name'] == selected_laptop_model:
+                        laptop_id = model['id']
+                        update_data = {'status': 'assigned', 'owner': user_id}
+                        assign_response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{laptop_id}/', headers=HEADERS, json=update_data)
+                        if assign_response.status_code == 200:
+                            messagebox.showinfo("Success", f"User added and assigned laptop model {selected_laptop_model}")
+                        else:
+                            messagebox.showerror("Error", f"Failed to assign laptop: {assign_response.text}")
+                        break
+            else:
+                messagebox.showerror("Error", f"Failed to add user: {response.text}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def add_laptop(self):
+        model_name = self.model_combo.get()
+        sn = self.sn_entry.get()
+        barcode = self.barcode_entry.get()
+        region_name = self.region_combo.get()
+        warehouse_name = self.warehouse_combo.get()
+        price = self.price_entry.get()
+        price_currency = self.price_currency_entry.get()
+
+        if not model_name or not sn or not barcode or not region_name or not warehouse_name or not price or not price_currency:
+            messagebox.showerror("Error", "All fields are required")
+            return
+
+        model_id = self.model_map[model_name]
+        region_id = REGIONS[region_name]
+        warehouse_id = WAREHOUSES[warehouse_name]
+
+        data = {
+            "model": model_id,
+            "sn": sn,
+            "barcode": barcode,
+            "type": "back_office",
+            "status": "new",
+            "region": region_id,
+            "warehouse": warehouse_id,
+            "price": price,
+            "price_currency": price_currency
+        }
+
+        try:
+            response = requests.post(f'{RALPH_URL}/api/back-office-assets/', headers=HEADERS, json=data)
+            if response.status_code == 201:
+                messagebox.showinfo("Success", "Laptop added successfully")
+            else:
+                messagebox.showerror("Error", f"Failed to add laptop: {response.text}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    app = RalphGUI()
+    app.mainloop()
+
