@@ -41,6 +41,8 @@ class RalphGUI(tk.Tk):
         super().__init__()
         self.title("Ralph Manager")
 
+        self.laptop_model_map = {}  # Initialize the laptop_model_map
+
         # Create tab control
         self.tabControl = ttk.Notebook(self)
         self.tabControl.pack(expand=1, fill="both")
@@ -55,7 +57,7 @@ class RalphGUI(tk.Tk):
         self.tabControl.add(self.add_user_tab, text='Add User')
         self.tabControl.add(self.add_laptop_tab, text='Add Laptop')
         self.tabControl.add(self.add_model_tab, text='Add Model')
-        self.tabControl.add(self.assign_laptop_tab, text='Assign/Remove Laptop')
+        self.tabControl.add(self.assign_laptop_tab, text='Assign Laptop')
         self.tabControl.add(self.user_assets_tab, text='User Assets')
 
         # Add content to tabs
@@ -147,8 +149,7 @@ class RalphGUI(tk.Tk):
         self.laptop_model_combo.grid(row=1, column=1, padx=10, pady=10)
 
         tk.Button(self.assign_laptop_tab, text="Assign Laptop", command=self.assign_laptop).grid(row=2, column=0, pady=10)
-        tk.Button(self.assign_laptop_tab, text="Remove Laptop", command=self.remove_laptop).grid(row=2, column=1, pady=10)
-
+       
     def create_user_assets_tab(self):
         tk.Label(self.user_assets_tab, text="Search User:").grid(row=0, column=0, padx=10, pady=10)
         self.search_user_entry = tk.Entry(self.user_assets_tab)
@@ -161,9 +162,11 @@ class RalphGUI(tk.Tk):
         self.user_assets_tab.grid_columnconfigure(0, weight=1)
         self.user_assets_tab.grid_rowconfigure(1, weight=1)
 
+        tk.Button(self.user_assets_tab, text="Remove Selected Laptop", command=self.remove_selected_laptop).grid(row=2, column=0, columnspan=3, pady=10)
+
     def on_tab_change(self, event):
         selected_tab = event.widget.tab(event.widget.select(), "text")
-        if selected_tab == 'Assign/Remove Laptop':
+        if selected_tab == 'Assign Laptop':
             self.update_users()
             self.update_laptop_models()
         elif selected_tab == 'Add Laptop':
@@ -174,7 +177,7 @@ class RalphGUI(tk.Tk):
         if laptop_models:
             serial_numbers = [model['sn'] for model in laptop_models]
             self.laptop_model_combo['values'] = serial_numbers
-            self.laptop_model_map = {model['sn']: model for model in laptop_models}
+            self.laptop_model_map = {model['sn']: model['id'] for model in laptop_models}
         else:
             self.laptop_model_combo['values'] = []
             messagebox.showinfo("Info", "No available laptops found.")
@@ -254,20 +257,15 @@ class RalphGUI(tk.Tk):
             return
 
         user_id = self.user_map[username]
-        asset_data = self.laptop_model_map[selected_sn]
-        
-        # Extracting only the primary keys
-        update_data = {
+        asset_id = self.laptop_model_map[selected_sn]
+
+        data = {
             "user": user_id,
-            "service_env": asset_data['service_env']['id'] if 'service_env' in asset_data and asset_data['service_env'] else None,
-            "model": asset_data['model']['id'],
-            "region": asset_data['region']['id'],
-            "warehouse": asset_data['warehouse']['id'],
-            "owner": asset_data['owner']['id'] if 'owner' in asset_data and asset_data['owner'] else None
+            "status": "in use"
         }
 
         try:
-            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_data["id"]}/', headers=HEADERS, json=update_data)
+            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Laptop assigned successfully")
             else:
@@ -283,15 +281,46 @@ class RalphGUI(tk.Tk):
             messagebox.showerror("Error", "All fields are required")
             return
 
-        asset_data = self.laptop_model_map[selected_sn]
-        update_data = {
-            "user": None
+        asset_id = self.laptop_model_map[selected_sn]
+
+        data = {
+            "user": None,
+            "status": "free"
         }
 
         try:
-            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_data["id"]}/', headers=HEADERS, json=update_data)
+            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Laptop removed successfully")
+            else:
+                messagebox.showerror("Error", f"Failed to remove laptop: {response.text}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def remove_selected_laptop(self):
+        selected_asset = self.assets_listbox.get(tk.ACTIVE)
+        if not selected_asset:
+            messagebox.showerror("Error", "No laptop selected")
+            return
+
+        asset_sn = selected_asset.split(' - ')[0]
+
+        if asset_sn not in self.laptop_model_map:
+            messagebox.showerror("Error", "Selected laptop not found")
+            return
+
+        asset_id = self.laptop_model_map[asset_sn]
+
+        data = {
+            "user": None,
+            "status": "free"
+        }
+
+        try:
+            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
+            if response.status_code == 200:
+                messagebox.showinfo("Success", "Laptop removed successfully")
+                self.search_user_assets()
             else:
                 messagebox.showerror("Error", f"Failed to remove laptop: {response.text}")
         except Exception as e:
@@ -326,6 +355,7 @@ class RalphGUI(tk.Tk):
                 self.assets_listbox.delete(0, tk.END)
                 for asset in assets:
                     self.assets_listbox.insert(tk.END, f"{asset['sn']} - {asset['model']['name']}")
+                self.laptop_model_map = {asset['sn']: asset['id'] for asset in assets}  # Update the laptop_model_map
             else:
                 messagebox.showerror("Error", f"Failed to fetch user assets: {response.text}")
         except Exception as e:
