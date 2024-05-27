@@ -1,13 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import requests
+import os
+import json
 
-RALPH_URL = 'http://192.168.20.41'
-API_TOKEN = '81ec9623bf5a0def010def81d66468e532293ecd'
-HEADERS = {
-    'Authorization': f'Token {API_TOKEN}',
-    'Content-Type': 'application/json'
-}
+CONFIG_FILE = 'servers.json'
 
 # Predefined regions and warehouses
 REGIONS = {
@@ -40,8 +37,13 @@ class RalphGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Ralph Manager")
-
+        self.servers = self.load_servers()
+        self.server_info = {}
+        self.load_default_server()
         self.laptop_model_map = {}  # Initialize the laptop_model_map
+
+        # Create menu
+        self.create_menu()
 
         # Create tab control
         self.tabControl = ttk.Notebook(self)
@@ -69,6 +71,14 @@ class RalphGUI(tk.Tk):
 
         # Bind tab change event to refresh data
         self.tabControl.bind("<<NotebookTabChanged>>", self.on_tab_change)
+
+    def create_menu(self):
+        menubar = tk.Menu(self)
+        self.config(menu=menubar)
+
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Settings", menu=settings_menu)
+        settings_menu.add_command(label="Server Manager", command=self.server_selection_dialog)
 
     def create_add_user_tab(self):
         tk.Label(self.add_user_tab, text="Username:").grid(row=0, column=0, padx=10, pady=10)
@@ -149,7 +159,7 @@ class RalphGUI(tk.Tk):
         self.laptop_model_combo.grid(row=1, column=1, padx=10, pady=10)
 
         tk.Button(self.assign_laptop_tab, text="Assign Laptop", command=self.assign_laptop).grid(row=2, column=0, pady=10)
-       
+
     def create_user_assets_tab(self):
         tk.Label(self.user_assets_tab, text="Search User:").grid(row=0, column=0, padx=10, pady=10)
         self.search_user_entry = tk.Entry(self.user_assets_tab)
@@ -184,10 +194,10 @@ class RalphGUI(tk.Tk):
 
     def fetch_available_laptop_models(self):
         try:
-            response = requests.get(f'{RALPH_URL}/api/back-office-assets/', headers=HEADERS, params={'limit': 200})
+            response = requests.get(f'{self.server_info["url"]}/api/back-office-assets/', headers=self.get_headers(), params={'limit': 200})
             if response.status_code == 200:
                 assets = response.json().get('results', [])
-                available_statuses = {'return in progress', 'new'}
+                available_statuses = {'return in progress', 'new', 'free'}
                 return [asset for asset in assets if asset['status'] in available_statuses]
             else:
                 messagebox.showerror("Error", f"Failed to fetch laptop models: {response.text}")
@@ -198,7 +208,7 @@ class RalphGUI(tk.Tk):
 
     def update_models(self):
         try:
-            response = requests.get(f'{RALPH_URL}/api/assetmodels/', headers=HEADERS, params={'limit': 200})
+            response = requests.get(f'{self.server_info["url"]}/api/assetmodels/', headers=self.get_headers(), params={'limit': 200})
             if response.status_code == 200:
                 models = response.json().get('results', [])
                 model_names = [model['name'] for model in models]
@@ -211,7 +221,7 @@ class RalphGUI(tk.Tk):
 
     def update_users(self):
         try:
-            response = requests.get(f'{RALPH_URL}/api/users/', headers=HEADERS, params={'limit': 500})
+            response = requests.get(f'{self.server_info["url"]}/api/users/', headers=self.get_headers(), params={'limit': 500})
             if response.status_code == 200:
                 users = response.json().get('results', [])
                 usernames = [user['username'] for user in users]
@@ -240,7 +250,7 @@ class RalphGUI(tk.Tk):
         }
 
         try:
-            response = requests.post(f'{RALPH_URL}/api/users/', headers=HEADERS, json=user_data)
+            response = requests.post(f'{self.server_info["url"]}/api/users/', headers=self.get_headers(), json=user_data)
             if response.status_code == 201:
                 messagebox.showinfo("Success", "User added successfully")
             else:
@@ -265,7 +275,7 @@ class RalphGUI(tk.Tk):
         }
 
         try:
-            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
+            response = requests.patch(f'{self.server_info["url"]}/api/back-office-assets/{asset_id}/', headers=self.get_headers(), json=data)
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Laptop assigned successfully")
             else:
@@ -289,7 +299,7 @@ class RalphGUI(tk.Tk):
         }
 
         try:
-            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
+            response = requests.patch(f'{self.server_info["url"]}/api/back-office-assets/{asset_id}/', headers=self.get_headers(), json=data)
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Laptop removed successfully")
             else:
@@ -317,7 +327,7 @@ class RalphGUI(tk.Tk):
         }
 
         try:
-            response = requests.patch(f'{RALPH_URL}/api/back-office-assets/{asset_id}/', headers=HEADERS, json=data)
+            response = requests.patch(f'{self.server_info["url"]}/api/back-office-assets/{asset_id}/', headers=self.get_headers(), json=data)
             if response.status_code == 200:
                 messagebox.showinfo("Success", "Laptop removed successfully")
                 self.search_user_assets()
@@ -334,7 +344,7 @@ class RalphGUI(tk.Tk):
             return
 
         try:
-            response = requests.get(f'{RALPH_URL}/api/users/', headers=HEADERS, params={'username': username})
+            response = requests.get(f'{self.server_info["url"]}/api/users/', headers=self.get_headers(), params={'username': username})
             if response.status_code == 200:
                 users = response.json().get('results', [])
                 if users:
@@ -349,7 +359,7 @@ class RalphGUI(tk.Tk):
 
     def fetch_user_assets(self, user_id):
         try:
-            response = requests.get(f'{RALPH_URL}/api/back-office-assets/', headers=HEADERS, params={'user': user_id})
+            response = requests.get(f'{self.server_info["url"]}/api/back-office-assets/', headers=self.get_headers(), params={'user': user_id})
             if response.status_code == 200:
                 assets = response.json().get('results', [])
                 self.assets_listbox.delete(0, tk.END)
@@ -384,17 +394,18 @@ class RalphGUI(tk.Tk):
             "model": model_id,
             "sn": sn,
             "barcode": barcode,
-            "type": "back_office",
+            "type": "back office",
             "status": "new",
             "region": region_id,
             "warehouse": warehouse_id,
             "price": price,
             "price_currency": price_currency,
-            "manufacturer": manufacturer_id
+            "manufacturer": manufacturer_id,
+            "category": "laptop" 
         }
 
         try:
-            response = requests.post(f'{RALPH_URL}/api/back-office-assets/', headers=HEADERS, json=data)
+            response = requests.post(f'{self.server_info["url"]}/api/back-office-assets/', headers=self.get_headers(), json=data)
             if response.status_code == 201:
                 messagebox.showinfo("Success", "Laptop added successfully")
             else:
@@ -422,7 +433,7 @@ class RalphGUI(tk.Tk):
         }
 
         try:
-            response = requests.post(f'{RALPH_URL}/api/assetmodels/', headers=HEADERS, json=data)
+            response = requests.post(f'{self.server_info["url"]}/api/assetmodels/', headers=self.get_headers(), json=data)
             if response.status_code == 201:
                 messagebox.showinfo("Success", "Model added successfully")
                 self.update_models()
@@ -430,6 +441,158 @@ class RalphGUI(tk.Tk):
                 messagebox.showerror("Error", f"Failed to add model: {response.text}")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def load_servers(self):
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        return []
+
+    def save_servers(self):
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(self.servers, f, indent=4)
+
+    def load_default_server(self):
+        default_server = next((server for server in self.servers if server.get('default')), None)
+        if default_server:
+            self.server_info = default_server
+        else:
+            self.server_selection_dialog()
+
+    def get_headers(self):
+        return {
+            'Authorization': f'Token {self.server_info["api_token"]}',
+            'Content-Type': 'application/json'
+        }
+
+    def server_selection_dialog(self):
+        dialog = tk.Toplevel(self)
+        dialog.title("Server Manager")
+        dialog.geometry("400x300")
+
+        tk.Label(dialog, text="Servers").pack(pady=10)
+        
+        self.server_listbox = tk.Listbox(dialog, selectmode=tk.SINGLE)
+        self.server_listbox.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+        for server in self.servers:
+            self.server_listbox.insert(tk.END, server['nickname'])
+
+        tk.Button(dialog, text="Add Server", command=lambda: self.add_server_dialog(dialog)).pack(side=tk.LEFT, padx=10, pady=10)
+        tk.Button(dialog, text="Edit Server", command=lambda: self.edit_server_dialog(dialog)).pack(side=tk.LEFT, padx=10, pady=10)
+        tk.Button(dialog, text="Delete Server", command=lambda: self.delete_server(dialog)).pack(side=tk.LEFT, padx=10, pady=10)
+        tk.Button(dialog, text="Select Default", command=lambda: self.set_default_server(dialog)).pack(side=tk.LEFT, padx=10, pady=10)
+
+    def add_server_dialog(self, parent):
+        dialog = tk.Toplevel(parent)
+        dialog.title("Add Server")
+
+        tk.Label(dialog, text="Nickname").grid(row=0, column=0, padx=10, pady=10)
+        nickname_entry = tk.Entry(dialog)
+        nickname_entry.grid(row=0, column=1, padx=10, pady=10)
+
+        tk.Label(dialog, text="URL").grid(row=1, column=0, padx=10, pady=10)
+        url_entry = tk.Entry(dialog)
+        url_entry.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(dialog, text="API Token").grid(row=2, column=0, padx=10, pady=10)
+        api_token_entry = tk.Entry(dialog)
+        api_token_entry.grid(row=2, column=1, padx=10, pady=10)
+
+        def add_server():
+            nickname = nickname_entry.get()
+            url = url_entry.get()
+            api_token = api_token_entry.get()
+
+            if not nickname or not url or not api_token:
+                messagebox.showerror("Error", "All fields are required")
+                return
+
+            new_server = {
+                "nickname": nickname,
+                "url": url,
+                "api_token": api_token,
+                "default": False
+            }
+
+            self.servers.append(new_server)
+            self.save_servers()
+            self.server_listbox.insert(tk.END, nickname)
+            dialog.destroy()
+
+        tk.Button(dialog, text="Add", command=add_server).grid(row=3, column=0, columnspan=2, pady=10)
+
+    def edit_server_dialog(self, parent):
+        selected_index = self.server_listbox.curselection()
+        if not selected_index:
+            messagebox.showerror("Error", "No server selected")
+            return
+        selected_index = selected_index[0]
+        selected_server = self.servers[selected_index]
+
+        dialog = tk.Toplevel(parent)
+        dialog.title("Edit Server")
+
+        tk.Label(dialog, text="Nickname").grid(row=0, column=0, padx=10, pady=10)
+        nickname_entry = tk.Entry(dialog)
+        nickname_entry.grid(row=0, column=1, padx=10, pady=10)
+        nickname_entry.insert(0, selected_server['nickname'])
+
+        tk.Label(dialog, text="URL").grid(row=1, column=0, padx=10, pady=10)
+        url_entry = tk.Entry(dialog)
+        url_entry.grid(row=1, column=1, padx=10, pady=10)
+        url_entry.insert(0, selected_server['url'])
+
+        tk.Label(dialog, text="API Token").grid(row=2, column=0, padx=10, pady=10)
+        api_token_entry = tk.Entry(dialog)
+        api_token_entry.grid(row=2, column=1, padx=10, pady=10)
+        api_token_entry.insert(0, selected_server['api_token'])
+
+        def save_server():
+            nickname = nickname_entry.get()
+            url = url_entry.get()
+            api_token = api_token_entry.get()
+
+            if not nickname or not url or not api_token:
+                messagebox.showerror("Error", "All fields are required")
+                return
+
+            selected_server.update({
+                "nickname": nickname,
+                "url": url,
+                "api_token": api_token
+            })
+
+            self.save_servers()
+            self.server_listbox.delete(selected_index)
+            self.server_listbox.insert(selected_index, nickname)
+            dialog.destroy()
+
+        tk.Button(dialog, text="Save", command=save_server).grid(row=3, column=0, columnspan=2, pady=10)
+
+    def delete_server(self, parent):
+        selected_index = self.server_listbox.curselection()
+        if not selected_index:
+            messagebox.showerror("Error", "No server selected")
+            return
+        selected_index = selected_index[0]
+        self.servers.pop(selected_index)
+        self.save_servers()
+        self.server_listbox.delete(selected_index)
+
+    def set_default_server(self, parent):
+        selected_index = self.server_listbox.curselection()
+        if not selected_index:
+            messagebox.showerror("Error", "No server selected")
+            return
+        selected_index = selected_index[0]
+
+        for server in self.servers:
+            server['default'] = False
+        self.servers[selected_index]['default'] = True
+        self.save_servers()
+        self.server_info = self.servers[selected_index]
+        parent.destroy()
 
 if __name__ == "__main__":
     app = RalphGUI()
