@@ -1,62 +1,169 @@
 import tkinter as tk
-from tkinter import filedialog, scrolledtext
-from openai import OpenAI
+from tkinter import filedialog, scrolledtext, ttk, messagebox, simpledialog
+from openai import OpenAI, OpenAIError
 import subprocess
 import os
+import winreg as reg
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+def get_api_key():
+    try:
+        reg_key = reg.OpenKey(reg.HKEY_CURRENT_USER, "Software\\OpenAITranscriber", 0, reg.KEY_READ)
+        api_key, _ = reg.QueryValueEx(reg_key, "APIKey")
+        reg.CloseKey(reg_key)
+        return api_key
+    except FileNotFoundError:
+        logger.error("Registry key not found.")
+        return None
+
+def set_api_key():
+    api_key = simpledialog.askstring("Enter API Key", "Please enter your OpenAI API key:")
+    if api_key:
+        try:
+            reg_key = reg.CreateKey(reg.HKEY_CURRENT_USER, "Software\\OpenAITranscriber")
+            reg.SetValueEx(reg_key, "APIKey", 0, reg.REG_SZ, api_key)
+            reg.CloseKey(reg_key)
+            messagebox.showinfo("Success", "API key set successfully.")
+        except Exception as e:
+            logger.error(f"Error setting API key: {e}")
+            messagebox.showerror("Error", f"Error setting API key: {e}")
+
+def remove_api_key():
+    try:
+        reg.DeleteKey(reg.HKEY_CURRENT_USER, "Software\\OpenAITranscriber")
+        messagebox.showinfo("Success", "API key removed successfully.")
+    except FileNotFoundError:
+        logger.error("Registry key not found.")
+        messagebox.showerror("Error", "API key not found.")
+    except Exception as e:
+        logger.error(f"Error removing API key: {e}")
+        messagebox.showerror("Error", f"Error removing API key: {e}")
 
 def extract_audio(mp4_file, output_file="temp_audio.mp3"):
     try:
         subprocess.run(["ffmpeg", "-i", mp4_file, "-q:a", "0", "-map", "a", output_file], check=True)
         return output_file
     except subprocess.CalledProcessError as e:
-        status_label.config(text=f"Error in audio extraction: {e}")
+        update_status(mp4_file, f"Error in audio extraction: {e}")
         return None
 
-def select_file():
-    file_path = filedialog.askopenfilename(filetypes=[("Audio/Video Files", "*.mp3 *.mp4")])
-    file_path_label.config(text=file_path)
-    return file_path
+def select_files():
+    file_paths = filedialog.askopenfilenames(filetypes=[("Audio/Video Files", "*.mp3 *.mp4")])
+    for file_path in file_paths:
+        file_listbox.insert(tk.END, file_path)
+        status_listbox.insert(tk.END, "Pending")
+    return file_paths
+
+def select_output_dir():
+    output_dir = filedialog.askdirectory()
+    output_dir_label.config(text=output_dir)
+    return output_dir
+
+def update_status(file_path, status):
+    index = file_listbox.get(0, tk.END).index(file_path)
+    status_listbox.delete(index)
+    status_listbox.insert(index, status)
 
 def transcribe():
     status_label.config(text="Processing...")
-    file_path = file_path_label.cget("text")
-    if file_path.endswith('.mp4'):
-        audio_file = extract_audio(file_path)
-        if audio_file is None:
-            return
-    else:
-        audio_file = file_path
+    file_paths = file_listbox.get(0, tk.END)
+    output_dir = output_dir_label.cget("text")
+    
+    if not output_dir:
+        status_label.config(text="Please select an output directory.")
+        return
 
-    try:
-        with open(audio_file, "rb") as file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1", 
-                file=file
-            )
-        transcript_display.config(state='normal')
-        transcript_display.delete(1.0, tk.END)
-        transcript_display.insert(tk.END, transcript)
-        transcript_display.config(state='disabled')
-        status_label.config(text="Transcription Completed")
-    except Exception as e:
-        status_label.config(text=f"Error: {e}")
-    finally:
+    for file_path in file_paths:
         if file_path.endswith('.mp4'):
-            os.remove(audio_file)  # Clean up temporary audio file
+            audio_file = extract_audio(file_path)
+            if audio_file is None:
+                update_status(file_path, "Failed")
+                continue
+        else:
+            audio_file = file_path
+
+        try:
+            with open(audio_file, "rb") as file:
+                progress_bar.start()
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1", 
+                    file=file
+                )
+                progress_bar.stop()
+
+            # Print the transcript object and its attributes for debugging
+            print(transcript)
+            print(dir(transcript))
+            print(transcript.__dict__)  # If it's an object with attributes
+
+            output_file = os.path.join(output_dir, os.path.basename(file_path) + ".txt")
+            with open(output_file, "w") as f:
+                # Adjust this part after inspecting the printed output
+                f.write(transcript.text)  # or transcript['text'], or transcript.get('text')
+
+            update_status(file_path, "Completed")
+        except Exception as e:
+            update_status(file_path, f"Error: {e}")
+        finally:
+            if file_path.endswith('.mp4'):
+                os.remove(audio_file)  # Clean up temporary audio file
+
+    status_label.config(text="Transcription Completed")
 
 # Setup the main window
 root = tk.Tk()
 root.title("Audio/Video Transcription")
-###################################################################################Replace the API Key below ###################################################################################
-# OpenAI Client
-api_key = 'APIAPIAPIAPIAPIAPIAPIAPIAPIAPIAAPIAPIAPIA'
-client = OpenAI(api_key=api_key)
+
+# Menu Bar
+menu_bar = tk.Menu(root)
+root.config(menu=menu_bar)
+
+# File Menu
+file_menu = tk.Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="File", menu=file_menu)
+file_menu.add_command(label="Set API Key", command=set_api_key)
+file_menu.add_command(label="Remove API Key", command=remove_api_key)
+
+# Get the API key
+api_key = get_api_key()
+if not api_key:
+    if messagebox.askyesno("API Key Missing", "API key not found in registry. Do you want to set it now?"):
+        set_api_key()
+        api_key = get_api_key()
+    else:
+        root.destroy()
+
+if api_key:
+    try:
+        # OpenAI Client
+        client = OpenAI(api_key=api_key)
+    except OpenAIError as e:
+        messagebox.showerror("Error", f"Error initializing OpenAI client: {e}")
+        root.destroy()
+else:
+    root.destroy()
 
 # File Selection
-file_path_label = tk.Label(root, text="No file selected", padx=10, pady=10)
-file_path_label.pack()
-file_select_button = tk.Button(root, text="Select Audio/Video File", command=select_file, padx=10)
+file_select_button = tk.Button(root, text="Select Audio/Video Files", command=select_files, padx=10)
 file_select_button.pack()
+
+# Output Directory Selection
+output_dir_label = tk.Label(root, text="No output directory selected", padx=10, pady=10)
+output_dir_label.pack()
+output_dir_button = tk.Button(root, text="Select Output Directory", command=select_output_dir, padx=10)
+output_dir_button.pack()
+
+# Selected Files Listbox
+file_listbox = tk.Listbox(root, height=10, width=60)
+file_listbox.pack(padx=10, pady=10)
+
+# Status Listbox
+status_listbox = tk.Listbox(root, height=10, width=20)
+status_listbox.pack(padx=10, pady=10)
 
 # Transcribe Button
 transcribe_button = tk.Button(root, text="Transcribe", command=transcribe, padx=10)
@@ -65,6 +172,10 @@ transcribe_button.pack()
 # Status Label
 status_label = tk.Label(root, text="", padx=10, pady=10)
 status_label.pack()
+
+# Progress Bar
+progress_bar = ttk.Progressbar(root, mode='indeterminate')
+progress_bar.pack(padx=10, pady=10, fill=tk.X)
 
 # Transcript Display with Scrollbar
 transcript_display = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=10, font=("Courier", 10), padx=10, pady=10, state='disabled')
