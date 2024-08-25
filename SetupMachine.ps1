@@ -236,6 +236,7 @@ function Show-WindowsMenu {
     Write-Host "10: Reset Windows Update Components"
     Write-Host "11: List installed Apps"
     Write-Host "12: Network Test"
+    Write-Host "13: Factory Reset Device/Reinstall Windows"
     Write-Host "0: Back to Main Menu"
 }
 
@@ -259,6 +260,21 @@ function Check-OfficeUpdates {
         Write-Host "Office update check completed. Updates have been applied if available." -ForegroundColor Green
     } else {
         Write-Host "Microsoft Office Click-to-Run client not found. Please ensure Office is installed." -ForegroundColor Red
+    }
+}
+
+function Factory-Reset {
+    Write-Host "This will reset the system to factory settings." -ForegroundColor Red
+    Write-Host "WARNING: All personal files, apps, and settings will be removed." -ForegroundColor Red
+    if (Confirm-Action "Do you want to proceed with the factory reset?") {
+        try {
+            Write-Host "Initiating factory reset..." -ForegroundColor Cyan
+            Start-Process -FilePath "systemreset.exe" -ArgumentList "-factoryreset" -Verb RunAs
+        } catch {
+            Write-Warning "Failed to initiate factory reset. $_"
+        }
+    } else {
+        Write-Host "Factory reset canceled." -ForegroundColor Yellow
     }
 }
 
@@ -504,6 +520,7 @@ do {
                     "10" { Reset-WindowsUpdateComponents }
                     "11" { List-InstalledApps }
                     "12" { Network-Diagnostics }
+                    "13" { Factory-Reset }
                     "0" { break }
                     default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                 }
@@ -593,6 +610,8 @@ do {
         "1.10" { Reset-WindowsUpdateComponents }
         "1.11" { List-InstalledApps }
         "1.12" { Network-Diagnostics }
+        "1.13" { Factory-Reset }
+
 
         "2.1" { Repair-Office }
         "2.2" { Check-OfficeUpdates }
