@@ -162,7 +162,7 @@ function Start-Teams {
         Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
         Start-Process -FilePath $teamsPath
     } else {
-        Write-Warning "Microsoft Teams executable not found."
+        Write-Warning "Microsoft Teams executable not found. Please open Teams manually"
     }
 }
 
