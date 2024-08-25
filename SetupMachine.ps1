@@ -169,19 +169,8 @@ function Start-Teams {
     }
 }
 
-
-    if ($teamsPath) {
-        Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
-        Start-Process -FilePath $teamsPath
-    } else {
-        Write-Warning "Microsoft Teams executable not found. Please open Teams manually"
-    }
-}
-
 function Clear-TeamsCache {
     Write-Host "Do you want to delete the Teams Cache (Y/N)?" -ForegroundColor Cyan
-    $clearCache = Read-Host "Do you want to delete the Teams Cache (Y/N)?"
-
     if ($clearCache.ToUpper() -eq "Y") {
         Write-Host "Closing Teams" -ForegroundColor Cyan
 
