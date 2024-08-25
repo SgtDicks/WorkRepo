@@ -137,6 +137,7 @@ function Reset-WindowsUpdateComponents {
         Write-Host "Windows Update components reset completed." -ForegroundColor Green
     }
 }
+
 function Start-Teams {
     Write-Host "Trying to find and launch Microsoft Teams..." -ForegroundColor Cyan
 
@@ -154,15 +155,21 @@ function Start-Teams {
 
     # Search for the Teams executable in possible locations
     foreach ($path in $possiblePaths) {
-        $path = [System.IO.Path]::GetFullPath($path)  # Resolve any relative paths
-        if (Test-Path -Path $path) {
-            $teamsPath = $path
-            break
+        try {
+            $fullPath = [System.IO.Path]::GetFullPath($path)  # Resolve any relative paths
+            if (Test-Path -Path $fullPath) {
+                $teamsPath = $fullPath
+                Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
+                break
+            } else {
+                Write-Host "Teams executable not found at: $fullPath" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Warning "Failed to check path: $path. $_"
         }
     }
 
     if ($teamsPath) {
-        Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
         Start-Process -FilePath $teamsPath
     } else {
         Write-Warning "Microsoft Teams executable not found."
@@ -190,9 +197,16 @@ function Clear-TeamsCache {
 
         Write-Host "Clearing Teams cache" -ForegroundColor Cyan
 
+        $cachePath = "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams"
+
         try {
-            Remove-Item -Path "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams" -Recurse -Force -Confirm:$false
-            Write-Host "Teams cache removed" -ForegroundColor Green
+            # Verify path exists
+            if (Test-Path -Path $cachePath) {
+                Remove-Item -Path $cachePath -Recurse -Force -Confirm:$false
+                Write-Host "Teams cache removed" -ForegroundColor Green
+            } else {
+                Write-Warning "Teams cache path not found: $cachePath"
+            }
         } catch {
             Write-Warning "Failed to remove Teams cache. $_"
         }
@@ -204,11 +218,12 @@ function Clear-TeamsCache {
     }
 }
 
-
 # Function to display the Windows Repairs submenu
 function Show-WindowsMenu {
     Clear-Host
-    Write-Host "Windows Repairs Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "      Windows Repairs       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: DISM RestoreHealth"
     Write-Host "2: System File Checker (SFC)"
     Write-Host "3: Check Disk (CHKDSK)"
@@ -246,6 +261,7 @@ function Check-OfficeUpdates {
         Write-Host "Microsoft Office Click-to-Run client not found. Please ensure Office is installed." -ForegroundColor Red
     }
 }
+
 # Update Windows
 function Update-Windows {
     Write-Host "Checking for Windows updates..." -ForegroundColor Cyan
@@ -363,6 +379,7 @@ function Get-SystemInfo {
         Write-Warning "Failed to fetch system information. $_"
     }
 }
+
 function Map-Printer {
     param (
         [string]$PrinterIP
@@ -399,18 +416,25 @@ function Download-MS-Teams {
 # Function to display the main menu
 function Show-MainMenu {
     Clear-Host
-    Write-Host "RPI Repair Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "       RPI Repair Menu      " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: Windows Repairs"
     Write-Host "2: Office Repairs"
     Write-Host "3: User Tasks"
     Write-Host "4: New PC Setup"
     Write-Host "0: Exit"
+    Write-Host "===========================" -ForegroundColor black
+    Write-Host " Jump Fuctions are enabled " -ForegroundColor black
+    Write-Host "===========================" -ForegroundColor black
 }
 
 # Function to display the Office Repairs submenu
 function Show-OfficeMenu {
     Clear-Host
-    Write-Host "Office Repairs Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "       Office Repairs       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: Repair Microsoft Office"
     Write-Host "2: Check for Microsoft Office Updates"
     Write-Host "0: Back to Main Menu"
@@ -419,7 +443,9 @@ function Show-OfficeMenu {
 # Function to display the User Tasks submenu
 function Show-UserTasksMenu {
     Clear-Host
-    Write-Host "User Tasks Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "         User Tasks         " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: Clean Temp Files"
     Write-Host "2: Printer Mapping"
     Write-Host "3: Clear Teams Cache"
@@ -429,7 +455,9 @@ function Show-UserTasksMenu {
 # Function to display the Printer Mapping submenu under User Tasks
 function Show-PrinterMenu {
     Clear-Host
-    Write-Host "Printer Mapping Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "      Printer Mapping       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: Map Sydney Printer"
     Write-Host "2: Map Melbourne Printer"
     Write-Host "3: Map Melbourne Airport Printer"
@@ -442,7 +470,9 @@ function Show-PrinterMenu {
 # Function to display the New PC Setup submenu
 function Show-NewPCSetupMenu {
     Clear-Host
-    Write-Host "New PC Setup Menu" -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "       New PC Setup         " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
     Write-Host "1: Open New PC Files Folder"
     Write-Host "2: Download and Open Ninite"
     Write-Host "3: Download MS Teams"
@@ -455,12 +485,12 @@ function Show-NewPCSetupMenu {
 # Main script loop
 do {
     Show-MainMenu
-    $mainChoice = Read-Host "Enter your choice (0-4)"
+    $mainChoice = Read-Host "Enter your choice (e.g., 1, 1.2, 3.3, etc.)"
     switch ($mainChoice) {
         "1" {
             do {
                 Show-WindowsMenu
-                $windowsChoice = Read-Host "Enter your choice (0-10)"
+                $windowsChoice = Read-Host "Enter your choice (0-12)"
                 switch ($windowsChoice) {
                     "1" { Repair-Windows }
                     "2" { Repair-SystemFiles }
@@ -500,7 +530,7 @@ do {
         "3" {
              do {
               Show-UserTasksMenu
-               $userTasksChoice = Read-Host "Enter your choice (0-3)"
+               $userTasksChoice = Read-Host "Enter your choice (0-3) or 3.x to jump"
                    switch ($userTasksChoice) {
                       "1" { Clean-TempFiles }
                        "2" {
@@ -534,7 +564,7 @@ do {
         "4" {
             do {
                 Show-NewPCSetupMenu
-                $newPCSetupChoice = Read-Host "Enter your choice (0-5)"
+                $newPCSetupChoice = Read-Host "Enter your choice (0-6) or 4.x to jump"
                 switch ($newPCSetupChoice) {
                     "1" { Open-NewPCFiles }
                     "2" { Download-And-Open-Ninite }
@@ -550,10 +580,43 @@ do {
                 }
             } while ($newPCSetupChoice -ne "0")
         }
+        # Direct Jump
+        "1.1" { Repair-Windows }
+        "1.2" { Repair-SystemFiles }
+        "1.3" { Repair-Disk }
+        "1.4" { Run-WindowsUpdateTroubleshooter }
+        "1.5" { CheckAndRepair-DISM }
+        "1.6" { Reset-Network }
+        "1.7" { Run-MemoryDiagnostic }
+        "1.8" { Run-StartupRepair }
+        "1.9" { Run-WindowsDefenderScan }
+        "1.10" { Reset-WindowsUpdateComponents }
+        "1.11" { List-InstalledApps }
+        "1.12" { Network-Diagnostics }
+
+        "2.1" { Repair-Office }
+        "2.2" { Check-OfficeUpdates }
+
+        "3.1" { Clean-TempFiles }
+        "3.2.1" { Map-Printer -PrinterIP "192.168.23.10" }  # Sydney Printer
+        "3.2.2" { Map-Printer -PrinterIP "192.168.33.63" }  # Melbourne Printer
+        "3.2.3" { Map-Printer -PrinterIP "192.168.43.250" }  # Melbourne Airport Printer
+        "3.2.4" { Map-Printer -PrinterIP "192.168.100.240" }  # Townsville Printer
+        "3.2.5" { Map-Printer -PrinterIP "192.168.20.242" }  # Brisbane Printer
+        "3.2.6" { Map-Printer -PrinterIP "192.168.90.240" }  # Mackay Printer
+        "3.3" { Clear-TeamsCache }
+
+        "4.1" { Open-NewPCFiles }
+        "4.2" { Download-And-Open-Ninite }
+        "4.3" { Download-MS-Teams }
+        "4.4" { Change-PCName }
+        "4.5" { Join-Domain }
+        "4.6" { Update-Windows }
+
         "0" { Write-Host "Exiting..." -ForegroundColor Yellow }
         default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
     }
-    if ($mainChoice -ne "0" -and $mainChoice -ne "1" -and $mainChoice -ne "2" -and $mainChoice -ne "3" -and $mainChoice -ne "4") {
+    if ($mainChoice -notmatch "^(0|[1-4](\.[1-9]|(\.[1-9]\.[1-9])?)?)$") {
         Pause
     }
 } while ($mainChoice -ne "0")
