@@ -530,7 +530,7 @@ do {
         "3" {
              do {
               Show-UserTasksMenu
-               $userTasksChoice = Read-Host "Enter your choice (0-3) or 3.x to jump"
+               $userTasksChoice = Read-Host "Enter your choice (0-3)"
                    switch ($userTasksChoice) {
                       "1" { Clean-TempFiles }
                        "2" {
@@ -564,7 +564,7 @@ do {
         "4" {
             do {
                 Show-NewPCSetupMenu
-                $newPCSetupChoice = Read-Host "Enter your choice (0-6) or 4.x to jump"
+                $newPCSetupChoice = Read-Host "Enter your choice (0-6)"
                 switch ($newPCSetupChoice) {
                     "1" { Open-NewPCFiles }
                     "2" { Download-And-Open-Ninite }
