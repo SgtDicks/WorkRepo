@@ -171,6 +171,8 @@ function Start-Teams {
 
 function Clear-TeamsCache {
     Write-Host "Do you want to delete the Teams Cache (Y/N)?" -ForegroundColor Cyan
+    $clearCache = Read-Host "Enter Y to delete the cache or N to cancel"
+
     if ($clearCache.ToUpper() -eq "Y") {
         Write-Host "Closing Teams" -ForegroundColor Cyan
 
@@ -183,7 +185,7 @@ function Clear-TeamsCache {
                 Write-Host "Teams is already closed" -ForegroundColor Green
             }
         } catch {
-            Write-Warning $_
+            Write-Warning "Failed to close Teams. $_"
         }
 
         Write-Host "Clearing Teams cache" -ForegroundColor Cyan
@@ -192,13 +194,16 @@ function Clear-TeamsCache {
             Remove-Item -Path "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams" -Recurse -Force -Confirm:$false
             Write-Host "Teams cache removed" -ForegroundColor Green
         } catch {
-            Write-Warning $_
+            Write-Warning "Failed to remove Teams cache. $_"
         }
 
         Write-Host "Cleanup complete... Trying to launch Teams" -ForegroundColor Green
         Start-Teams
+    } else {
+        Write-Host "Cache deletion canceled." -ForegroundColor Yellow
     }
 }
+
 
 # Function to display the Windows Repairs submenu
 function Show-WindowsMenu {
