@@ -424,9 +424,9 @@ function Show-MainMenu {
     Write-Host "3: User Tasks"
     Write-Host "4: New PC Setup"
     Write-Host "0: Exit"
-    Write-Host "===========================" -ForegroundColor black
-    Write-Host " Jump Fuctions are enabled " -ForegroundColor black
-    Write-Host "===========================" -ForegroundColor black
+    Write-Host "===========================" -ForegroundColor DarkYellow
+    Write-Host " Jump Fuctions are enabled " -ForegroundColor DarkYellow
+    Write-Host "===========================" -ForegroundColor DarkYellow
 }
 
 # Function to display the Office Repairs submenu
