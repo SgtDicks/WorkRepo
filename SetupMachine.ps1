@@ -145,18 +145,30 @@ function Start-Teams {
         "$env:LOCALAPPDATA\Programs\Teams\current\Teams.exe",
         "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams\current\Teams.exe",
         "$env:PROGRAMFILES\Teams\Teams.exe",
-        "$env:PROGRAMFILES(X86)\Teams\Teams.exe"
+        "$env:PROGRAMFILES(X86)\Teams\Teams.exe",
+        "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe",
+        "$env:LOCALAPPDATA\Microsoft\Teams\Teams.exe"
     )
 
     $teamsPath = $null
 
     # Search for the Teams executable in possible locations
     foreach ($path in $possiblePaths) {
+        $path = [System.IO.Path]::GetFullPath($path)  # Resolve any relative paths
         if (Test-Path -Path $path) {
             $teamsPath = $path
             break
         }
     }
+
+    if ($teamsPath) {
+        Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
+        Start-Process -FilePath $teamsPath
+    } else {
+        Write-Warning "Microsoft Teams executable not found."
+    }
+}
+
 
     if ($teamsPath) {
         Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
