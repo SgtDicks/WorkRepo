@@ -137,6 +137,35 @@ function Reset-WindowsUpdateComponents {
         Write-Host "Windows Update components reset completed." -ForegroundColor Green
     }
 }
+function Start-Teams {
+    Write-Host "Trying to find and launch Microsoft Teams..." -ForegroundColor Cyan
+
+    # Define possible locations where Teams could be installed
+    $possiblePaths = @(
+        "$env:LOCALAPPDATA\Programs\Teams\current\Teams.exe",
+        "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams\current\Teams.exe",
+        "$env:PROGRAMFILES\Teams\Teams.exe",
+        "$env:PROGRAMFILES(X86)\Teams\Teams.exe"
+    )
+
+    $teamsPath = $null
+
+    # Search for the Teams executable in possible locations
+    foreach ($path in $possiblePaths) {
+        if (Test-Path -Path $path) {
+            $teamsPath = $path
+            break
+        }
+    }
+
+    if ($teamsPath) {
+        Write-Host "Teams executable found at: $teamsPath" -ForegroundColor Green
+        Start-Process -FilePath $teamsPath
+    } else {
+        Write-Warning "Microsoft Teams executable not found."
+    }
+}
+
 function Clear-TeamsCache {
     Write-Host "Do you want to delete the Teams Cache (Y/N)?" -ForegroundColor Cyan
     $clearCache = Read-Host "Do you want to delete the Teams Cache (Y/N)?"
@@ -159,17 +188,16 @@ function Clear-TeamsCache {
         Write-Host "Clearing Teams cache" -ForegroundColor Cyan
 
         try {
-            Remove-Item -Path "$env:LOCALAPPDATA\Packages\MSTeams_8wekyb3d8bbwe" -Recurse -Force -Confirm:$false
+            Remove-Item -Path "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams" -Recurse -Force -Confirm:$false
             Write-Host "Teams cache removed" -ForegroundColor Green
         } catch {
             Write-Warning $_
         }
 
         Write-Host "Cleanup complete... Trying to launch Teams" -ForegroundColor Green
-        Start-Process -FilePath "C:\Program Files\WindowsApps\MSTeams_23335.219.2592.8659_x64__8wekyb3d8bbwe\ms-teams.exe"
+        Start-Teams
     }
 }
-
 
 # Function to display the Windows Repairs submenu
 function Show-WindowsMenu {
