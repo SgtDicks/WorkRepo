@@ -27,9 +27,23 @@ function Change-PCName {
 }
 
 function Join-Domain {
-    Write-Host "Joining the computer to the domain rootprojects.local..." -ForegroundColor Green
+    # Prompt user for domain details
+    $domainName = Read-Host "Enter the domain name (e.g., rootprojects.local)"
+    $ouPath = Read-Host "Enter the Organizational Unit (OU) path (e.g., OU=Computers,DC=rootprojects,DC=local). Leave blank for default location"
+    $credential = Get-Credential -Message "Enter credentials with permission to join the domain"
+    
+    # Construct the Add-Computer command
+    $command = "Add-Computer -DomainName '$domainName' -Credential \$credential -Force -Restart"
+
+    # If an OU path is provided, append it to the command
+    if ($ouPath -ne "") {
+        $command += " -OUPath '$ouPath'"
+    }
+
+    # Display confirmation and execute the command
+    Write-Host "Joining the computer to the domain $domainName..." -ForegroundColor Green
     if (Confirm-Action "This will join the computer to the domain and require a restart.") {
-        Add-Computer -DomainName "rootprojects.local" -Credential (Get-Credential) -Restart
+        Invoke-Expression $command
     }
 }
 
