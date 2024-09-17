@@ -1,3 +1,4 @@
+# Set Execution Policy
 Get-ExecutionPolicy
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
@@ -45,7 +46,7 @@ function Join-Domain {
     $domainName = Read-Host "Enter the domain name (e.g., rootprojects.local)"
     $ouPath = Read-Host "Enter the Organizational Unit (OU) path (e.g., OU=Computers,DC=rootprojects,DC=local). Leave blank for default location"
     $credential = Get-Credential -Message "Enter credentials with permission to join the domain"
-    
+
     # Construct the Add-Computer command
     $command = "Add-Computer -DomainName '$domainName' -Credential \$credential -Force -Restart"
 
@@ -166,8 +167,8 @@ function Reset-WindowsUpdateComponents {
         net stop cryptsvc
         net stop bits
         net stop msiserver
-        Ren C:\Windows\SoftwareDistribution SoftwareDistribution.old
-        Ren C:\Windows\System32\catroot2 Catroot2.old
+        Rename-Item -Path "C:\Windows\SoftwareDistribution" -NewName "SoftwareDistribution.old" -Force -ErrorAction SilentlyContinue
+        Rename-Item -Path "C:\Windows\System32\catroot2" -NewName "Catroot2.old" -Force -ErrorAction SilentlyContinue
         net start wuauserv
         net start cryptsvc
         net start bits
@@ -505,7 +506,7 @@ function Download-MS-Teams {
     }
 }
 
-# New Function to Install Adobe Acrobat Reader 32-bit
+# Function to install Adobe Acrobat Reader 32-bit using winget
 function Install-AdobeReader {
     Write-Host "Installing Adobe Acrobat Reader 32-bit using winget..." -ForegroundColor Green
     Write-Host "This will download and install Adobe Acrobat Reader. Ensure you have an active internet connection." -ForegroundColor Yellow
@@ -525,6 +526,147 @@ function Install-AdobeReader {
     }
 }
 
+# Function to remove HP bloatware and crapware
+function Remove-HPBloatware {
+    Write-Host "Removing HP bloatware and crapware..." -ForegroundColor Green
+    if (Confirm-Action "Do you want to proceed with removing HP bloatware?") {
+
+        # List of built-in apps to remove
+        $UninstallPackages = @(
+            "AD2F1837.HPJumpStarts"
+            "AD2F1837.HPPCHardwareDiagnosticsWindows"
+            "AD2F1837.HPPowerManager"
+            "AD2F1837.HPPrivacySettings"
+            "AD2F1837.HPSupportAssistant"
+            "AD2F1837.HPSureShieldAI"
+            "AD2F1837.HPSystemInformation"
+            "AD2F1837.HPQuickDrop"
+            "AD2F1837.HPWorkWell"
+            "AD2F1837.myHP"
+            "AD2F1837.HPDesktopSupportUtilities"
+            "AD2F1837.HPQuickTouch"
+            "AD2F1837.HPEasyClean"
+            "AD2F1837.HPSystemInformation"
+        )
+
+        # List of programs to uninstall
+        $UninstallPrograms = @(
+            "HP Client Security Manager"
+            "HP Connection Optimizer"
+            "HP Documentation"
+            "HP MAC Address Manager"
+            "HP Notifications"
+            "HP Security Update Service"
+            "HP System Default Settings"
+            "HP Sure Click"
+            "HP Sure Click Security Browser"
+            "HP Sure Run"
+            "HP Sure Recover"
+            "HP Sure Sense"
+            "HP Sure Sense Installer"
+            "HP Wolf Security"
+            "HP Wolf Security Application Support for Sure Sense"
+            "HP Wolf Security Application Support for Windows"
+        )
+
+        $HPidentifier = "AD2F1837"
+
+        $InstalledPackages = Get-AppxPackage -AllUsers |
+            Where-Object { ($UninstallPackages -contains $_.Name) -or ($_.Name -match "^$HPidentifier") }
+
+        $ProvisionedPackages = Get-AppxProvisionedPackage -Online |
+            Where-Object { ($UninstallPackages -contains $_.DisplayName) -or ($_.DisplayName -match "^$HPidentifier") }
+
+        $InstalledPrograms = Get-Package | Where-Object { $UninstallPrograms -contains $_.Name }
+
+        # Remove appx provisioned packages
+        foreach ($ProvPackage in $ProvisionedPackages) {
+            Write-Host "Attempting to remove provisioned package: [$($ProvPackage.DisplayName)]..."
+            try {
+                Remove-AppxProvisionedPackage -PackageName $ProvPackage.PackageName -Online -ErrorAction Stop | Out-Null
+                Write-Host "Successfully removed provisioned package: [$($ProvPackage.DisplayName)]"
+            } catch {
+                Write-Warning "Failed to remove provisioned package: [$($ProvPackage.DisplayName)]"
+            }
+        }
+
+        # Remove appx packages
+        foreach ($AppxPackage in $InstalledPackages) {
+            Write-Host "Attempting to remove Appx package: [$($AppxPackage.Name)]..."
+            try {
+                Remove-AppxPackage -Package $AppxPackage.PackageFullName -AllUsers -ErrorAction Stop | Out-Null
+                Write-Host "Successfully removed Appx package: [$($AppxPackage.Name)]"
+            } catch {
+                Write-Warning "Failed to remove Appx package: [$($AppxPackage.Name)]"
+            }
+        }
+
+        # Remove installed programs
+        foreach ($Program in $InstalledPrograms) {
+            Write-Host "Attempting to uninstall: [$($Program.Name)]..."
+            try {
+                $Program | Uninstall-Package -AllVersions -Force -ErrorAction Stop | Out-Null
+                Write-Host "Successfully uninstalled: [$($Program.Name)]"
+            } catch {
+                Write-Warning "Failed to uninstall: [$($Program.Name)]"
+            }
+        }
+
+        # Fallback attempt 1 to remove HP Wolf Security using msiexec
+        try {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList '/x "{0E2E04B0-9EDD-11EB-B38C-10604B96B11E}" /qn /norestart' -Wait
+            Write-Host "Fallback to MSI uninstall for HP Wolf Security initiated" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to uninstall HP Wolf Security using MSI - Error message: $($_.Exception.Message)"
+        }
+
+        # Fallback attempt 2 to remove HP Wolf Security using msiexec
+        try {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList '/x "{4DA839F0-72CF-11EC-B247-3863BB3CB5A8}" /qn /norestart' -Wait
+            Write-Host "Fallback to MSI uninstall for HP Wolf Security 2 initiated" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to uninstall HP Wolf Security 2 using MSI - Error message: $($_.Exception.Message)"
+        }
+
+        Write-Host "HP bloatware removal process completed." -ForegroundColor Green
+    } else {
+        Write-Host "HP bloatware removal canceled." -ForegroundColor Yellow
+    }
+}
+
+# Function to install all printers via VBS script
+function Install-AllPrinters {
+    Write-Host "Installing all printers via VBS script..." -ForegroundColor Green
+
+    # List of possible UNC paths for the VBS script
+    $vbsPaths = @(
+        "\\server-mel\software\rp files\Printers.vbs",
+        "\\server-syd\Scans\do not delete this folder\new pc files\Printers.vbs"
+    )
+
+    $vbsFound = $false
+
+    foreach ($path in $vbsPaths) {
+        if (Test-Path $path) {
+            Write-Host "Found Printers.vbs at $path" -ForegroundColor Green
+            try {
+                Start-Process -FilePath "wscript.exe" -ArgumentList "`"$path`"" -Wait
+                Write-Host "Printers installation initiated." -ForegroundColor Green
+                $vbsFound = $true
+                break
+            } catch {
+                Write-Warning "Failed to run Printers.vbs from $path. $_"
+            }
+        } else {
+            Write-Host "Printers.vbs not found at $path" -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $vbsFound) {
+        Write-Host "Printers.vbs script not found in any of the specified locations." -ForegroundColor Red
+    }
+}
+
 # Function to display the New PC Setup submenu
 function Show-NewPCSetupMenu {
     Clear-Host
@@ -537,7 +679,8 @@ function Show-NewPCSetupMenu {
     Write-Host "4: Change PC Name"
     Write-Host "5: Join RPI Domain"
     Write-Host "6: Update Windows"
-    Write-Host "7: Install Adobe Acrobat Reader 32-bit"   # New Option Added
+    Write-Host "7: Install Adobe Acrobat Reader 32-bit"
+    Write-Host "8: Remove HP Bloatware"
     Write-Host "0: Back to Main Menu"
 }
 
@@ -564,7 +707,7 @@ function Show-UserTasksMenu {
     Write-Host "0: Back to Main Menu"
 }
 
-# Function to display the Printer Mapping submenu under User Tasks
+# Function to display the Printer Mapping submenu
 function Show-PrinterMenu {
     Clear-Host
     Write-Host "===========================" -ForegroundColor Cyan
@@ -576,7 +719,187 @@ function Show-PrinterMenu {
     Write-Host "4: Map Townsville Printer"
     Write-Host "5: Map Brisbane Printer"
     Write-Host "6: Map Mackay Printer"
+    Write-Host "7: Install All Printers"  # New Option Added
     Write-Host "0: Back to User Tasks Menu"
+}
+
+# Function to install temporary files (Clean-TempFiles)
+function Clean-TempFiles {
+    Write-Host "Cleaning temporary files..." -ForegroundColor Cyan
+    $tempPaths = @(
+        "$env:TEMP\*",
+        "C:\Windows\Temp\*"
+    )
+    foreach ($path in $tempPaths) {
+        try {
+            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "Cleared: $path" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to clear: $path. $_"
+        }
+    }
+    Write-Host "Temporary files cleanup completed." -ForegroundColor Green
+}
+
+# Function to install Adobe Acrobat Reader 32-bit using winget
+function Install-AdobeReader {
+    Write-Host "Installing Adobe Acrobat Reader 32-bit using winget..." -ForegroundColor Green
+    Write-Host "This will download and install Adobe Acrobat Reader. Ensure you have an active internet connection." -ForegroundColor Yellow
+    if (Confirm-Action "Do you want to install Adobe Acrobat Reader 32-bit?") {
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            try {
+                winget install -e --id Adobe.Acrobat.Reader.32-bit -h
+                Write-Host "Adobe Acrobat Reader installation initiated." -ForegroundColor Green
+            } catch {
+                Write-Warning "Failed to install Adobe Acrobat Reader. $_"
+            }
+        } else {
+            Write-Warning "winget is not installed or not found in PATH. Please install winget and try again."
+        }
+    } else {
+        Write-Host "Adobe Acrobat Reader installation canceled." -ForegroundColor Yellow
+    }
+}
+
+# Function to remove HP bloatware and crapware
+function Remove-HPBloatware {
+    Write-Host "Removing HP bloatware and crapware..." -ForegroundColor Green
+    if (Confirm-Action "Do you want to proceed with removing HP bloatware?") {
+
+        # List of built-in apps to remove
+        $UninstallPackages = @(
+            "AD2F1837.HPJumpStarts"
+            "AD2F1837.HPPCHardwareDiagnosticsWindows"
+            "AD2F1837.HPPowerManager"
+            "AD2F1837.HPPrivacySettings"
+            "AD2F1837.HPSupportAssistant"
+            "AD2F1837.HPSureShieldAI"
+            "AD2F1837.HPSystemInformation"
+            "AD2F1837.HPQuickDrop"
+            "AD2F1837.HPWorkWell"
+            "AD2F1837.myHP"
+            "AD2F1837.HPDesktopSupportUtilities"
+            "AD2F1837.HPQuickTouch"
+            "AD2F1837.HPEasyClean"
+            "AD2F1837.HPSystemInformation"
+        )
+
+        # List of programs to uninstall
+        $UninstallPrograms = @(
+            "HP Client Security Manager"
+            "HP Connection Optimizer"
+            "HP Documentation"
+            "HP MAC Address Manager"
+            "HP Notifications"
+            "HP Security Update Service"
+            "HP System Default Settings"
+            "HP Sure Click"
+            "HP Sure Click Security Browser"
+            "HP Sure Run"
+            "HP Sure Recover"
+            "HP Sure Sense"
+            "HP Sure Sense Installer"
+            "HP Wolf Security"
+            "HP Wolf Security Application Support for Sure Sense"
+            "HP Wolf Security Application Support for Windows"
+        )
+
+        $HPidentifier = "AD2F1837"
+
+        $InstalledPackages = Get-AppxPackage -AllUsers |
+            Where-Object { ($UninstallPackages -contains $_.Name) -or ($_.Name -match "^$HPidentifier") }
+
+        $ProvisionedPackages = Get-AppxProvisionedPackage -Online |
+            Where-Object { ($UninstallPackages -contains $_.DisplayName) -or ($_.DisplayName -match "^$HPidentifier") }
+
+        $InstalledPrograms = Get-Package | Where-Object { $UninstallPrograms -contains $_.Name }
+
+        # Remove appx provisioned packages
+        foreach ($ProvPackage in $ProvisionedPackages) {
+            Write-Host "Attempting to remove provisioned package: [$($ProvPackage.DisplayName)]..."
+            try {
+                Remove-AppxProvisionedPackage -PackageName $ProvPackage.PackageName -Online -ErrorAction Stop | Out-Null
+                Write-Host "Successfully removed provisioned package: [$($ProvPackage.DisplayName)]"
+            } catch {
+                Write-Warning "Failed to remove provisioned package: [$($ProvPackage.DisplayName)]"
+            }
+        }
+
+        # Remove appx packages
+        foreach ($AppxPackage in $InstalledPackages) {
+            Write-Host "Attempting to remove Appx package: [$($AppxPackage.Name)]..."
+            try {
+                Remove-AppxPackage -Package $AppxPackage.PackageFullName -AllUsers -ErrorAction Stop | Out-Null
+                Write-Host "Successfully removed Appx package: [$($AppxPackage.Name)]"
+            } catch {
+                Write-Warning "Failed to remove Appx package: [$($AppxPackage.Name)]"
+            }
+        }
+
+        # Remove installed programs
+        foreach ($Program in $InstalledPrograms) {
+            Write-Host "Attempting to uninstall: [$($Program.Name)]..."
+            try {
+                $Program | Uninstall-Package -AllVersions -Force -ErrorAction Stop | Out-Null
+                Write-Host "Successfully uninstalled: [$($Program.Name)]"
+            } catch {
+                Write-Warning "Failed to uninstall: [$($Program.Name)]"
+            }
+        }
+
+        # Fallback attempt 1 to remove HP Wolf Security using msiexec
+        try {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList '/x "{0E2E04B0-9EDD-11EB-B38C-10604B96B11E}" /qn /norestart' -Wait
+            Write-Host "Fallback to MSI uninstall for HP Wolf Security initiated" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to uninstall HP Wolf Security using MSI - Error message: $($_.Exception.Message)"
+        }
+
+        # Fallback attempt 2 to remove HP Wolf Security using msiexec
+        try {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList '/x "{4DA839F0-72CF-11EC-B247-3863BB3CB5A8}" /qn /norestart' -Wait
+            Write-Host "Fallback to MSI uninstall for HP Wolf Security 2 initiated" -ForegroundColor Green
+        } catch {
+            Write-Warning "Failed to uninstall HP Wolf Security 2 using MSI - Error message: $($_.Exception.Message)"
+        }
+
+        Write-Host "HP bloatware removal process completed." -ForegroundColor Green
+    } else {
+        Write-Host "HP bloatware removal canceled." -ForegroundColor Yellow
+    }
+}
+
+# Function to install all printers via VBS script
+function Install-AllPrinters {
+    Write-Host "Installing all printers via VBS script..." -ForegroundColor Green
+
+    # List of possible UNC paths for the VBS script
+    $vbsPaths = @(
+        "\\server-mel\software\rp files\Printers.vbs",
+        "\\server-syd\Scans\do not delete this folder\new pc files\Printers.vbs"
+    )
+
+    $vbsFound = $false
+
+    foreach ($path in $vbsPaths) {
+        if (Test-Path $path) {
+            Write-Host "Found Printers.vbs at $path" -ForegroundColor Green
+            try {
+                Start-Process -FilePath "wscript.exe" -ArgumentList "`"$path`"" -Wait
+                Write-Host "Printers installation initiated." -ForegroundColor Green
+                $vbsFound = $true
+                break
+            } catch {
+                Write-Warning "Failed to run Printers.vbs from $path. $_"
+            }
+        } else {
+            Write-Host "Printers.vbs not found at $path" -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $vbsFound) {
+        Write-Host "Printers.vbs script not found in any of the specified locations." -ForegroundColor Red
+    }
 }
 
 # Function to display the main menu
@@ -650,7 +973,7 @@ do {
                     "2" {
                         do {
                             Show-PrinterMenu
-                            $printerChoice = Read-Host "Enter your choice (0-6)"
+                            $printerChoice = Read-Host "Enter your choice (0-7)"
                             switch ($printerChoice) {
                                 "1" { Map-Printer -PrinterIP "192.168.23.10" }  # Sydney Printer
                                 "2" { Map-Printer -PrinterIP "192.168.33.63" }  # Melbourne Printer
@@ -658,6 +981,7 @@ do {
                                 "4" { Map-Printer -PrinterIP "192.168.100.240" }  # Townsville Printer
                                 "5" { Map-Printer -PrinterIP "192.168.20.242" }  # Brisbane Printer
                                 "6" { Map-Printer -PrinterIP "192.168.90.240" }  # Mackay Printer
+                                "7" { Install-AllPrinters }  # Handle new option
                                 "0" { break }
                                 default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                             }
@@ -678,7 +1002,7 @@ do {
         "4" {
             do {
                 Show-NewPCSetupMenu
-                $newPCSetupChoice = Read-Host "Enter your choice (0-7)"
+                $newPCSetupChoice = Read-Host "Enter your choice (0-8)"
                 switch ($newPCSetupChoice) {
                     "1" { Open-NewPCFiles }
                     "2" { Download-And-Open-Ninite }
@@ -686,7 +1010,8 @@ do {
                     "4" { Change-PCName }
                     "5" { Join-Domain }
                     "6" { Update-Windows }
-                    "7" { Install-AdobeReader }  # Handle new option
+                    "7" { Install-AdobeReader }
+                    "8" { Remove-HPBloatware }  # Handle new option
                     "0" { break }
                     default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                 }
@@ -695,63 +1020,15 @@ do {
                 }
             } while ($newPCSetupChoice -ne "0")
         }
-        # Direct Jump Functions
-        "1.1" { Repair-Windows }
-        "1.2" { Repair-SystemFiles }
-        "1.3" { Repair-Disk }
-        "1.4" { Run-WindowsUpdateTroubleshooter }
-        "1.5" { Check-And-Repair-DISM }
-        "1.6" { Reset-Network }
-        "1.7" { Run-MemoryDiagnostic }
-        "1.8" { Run-StartupRepair }
-        "1.9" { Run-WindowsDefenderScan }
-        "1.10" { Reset-WindowsUpdateComponents }
-        "1.11" { List-InstalledApps }
-        "1.12" { Network-Diagnostics }
-        "1.13" { Factory-Reset }
-
-        "2.1" { Repair-Office }
-        "2.2" { Check-OfficeUpdates }
-
-        "3.1" { Clean-TempFiles }
-        "3.2.1" { Map-Printer -PrinterIP "192.168.23.10" }  # Sydney Printer
-        "3.2.2" { Map-Printer -PrinterIP "192.168.33.63" }  # Melbourne Printer
-        "3.2.3" { Map-Printer -PrinterIP "192.168.43.250" }  # Melbourne Airport Printer
-        "3.2.4" { Map-Printer -PrinterIP "192.168.100.240" }  # Townsville Printer
-        "3.2.5" { Map-Printer -PrinterIP "192.168.20.242" }  # Brisbane Printer
-        "3.2.6" { Map-Printer -PrinterIP "192.168.90.240" }  # Mackay Printer
-        "3.3" { Clear-TeamsCache }
-
-        "4.1" { Open-NewPCFiles }
-        "4.2" { Download-And-Open-Ninite }
-        "4.3" { Download-MS-Teams }
-        "4.4" { Change-PCName }
-        "4.5" { Join-Domain }
-        "4.6" { Update-Windows }
-        "4.7" { Install-AdobeReader }  # Handle direct jump for new option
-
-        "0" { Write-Host "Exiting..." -ForegroundColor Yellow }
-        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
+        "0" { 
+            Write-Host "Exiting..." -ForegroundColor Yellow 
+        }
+        default { 
+            Write-Host "Invalid choice, please try again." -ForegroundColor Red 
+        }
     }
-    if ($mainChoice -notmatch "^(0|[1-4](\.[1-9]|(\.[1-9]\.[1-9])?)?)$") {
+    if ($mainChoice -notmatch "^(0|[1-4](\.[1-9]+)?)$") {
         Pause
     }
 } while ($mainChoice -ne "0")
 
-# Function to clean temporary files (added based on previous recommendations)
-function Clean-TempFiles {
-    Write-Host "Cleaning temporary files..." -ForegroundColor Cyan
-    $tempPaths = @(
-        "$env:TEMP\*",
-        "C:\Windows\Temp\*"
-    )
-    foreach ($path in $tempPaths) {
-        try {
-            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "Cleared: $path" -ForegroundColor Green
-        } catch {
-            Write-Warning "Failed to clear: $path. $_"
-        }
-    }
-    Write-Host "Temporary files cleanup completed." -ForegroundColor Green
-}
