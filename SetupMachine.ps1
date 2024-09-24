@@ -526,9 +526,9 @@ function Install-AdobeReader {
     }
 }
 
-# Function to remove HP bloatware and crapware
+# Function to remove HP bloatware
 function Remove-HPBloatware {
-    Write-Host "Removing HP bloatware and crapware..." -ForegroundColor Green
+    Write-Host "Removing HP bloatware..." -ForegroundColor Green
     if (Confirm-Action "Do you want to proceed with removing HP bloatware?") {
 
         # List of built-in apps to remove
