@@ -7,6 +7,7 @@ from pynput import keyboard, mouse
 import websockets
 import os
 import nest_asyncio
+import screeninfo
 
 class KMSharingApp:
     def __init__(self, root):
@@ -26,6 +27,7 @@ class KMSharingApp:
         self.clients = set()
         self.websocket = None
         self.server = None
+        self.screen_width = screeninfo.get_monitors()[0].width
 
     def create_widgets(self):
         # Mode Selection
@@ -99,8 +101,12 @@ class KMSharingApp:
             asyncio.run_coroutine_threadsafe(broadcast(json.dumps(event)), asyncio.get_event_loop())
 
         def on_move(x, y):
-            event = {'type': 'mouse', 'action': 'move', 'position': (x, y)}
-            asyncio.run_coroutine_threadsafe(broadcast(json.dumps(event)), asyncio.get_event_loop())
+            if x >= self.screen_width - 1:  # Move to client machine when mouse reaches edge of the screen
+                event = {'type': 'mouse', 'action': 'move', 'position': (0, y)}
+                asyncio.run_coroutine_threadsafe(broadcast(json.dumps(event)), asyncio.get_event_loop())
+            else:
+                event = {'type': 'mouse', 'action': 'move', 'position': (x, y)}
+                asyncio.run_coroutine_threadsafe(broadcast(json.dumps(event)), asyncio.get_event_loop())
 
         def on_click(x, y, button, pressed):
             event = {'type': 'mouse', 'action': 'click', 'button': str(button), 'pressed': pressed, 'position': (x, y)}
@@ -182,3 +188,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = KMSharingApp(root)
     root.mainloop()
+
