@@ -3,9 +3,10 @@ from tkinter import messagebox
 import asyncio
 import threading
 import json
-import ssl
 from pynput import keyboard, mouse
 import websockets
+import os
+import nest_asyncio
 
 class KMSharingApp:
     def __init__(self, root):
@@ -15,6 +16,7 @@ class KMSharingApp:
 
         self.mode = tk.StringVar(value="server")
         self.server_ip = tk.StringVar()
+        self.password = tk.StringVar()
         self.connection_status = tk.StringVar(value="Disconnected")
 
         # GUI Elements
@@ -24,7 +26,6 @@ class KMSharingApp:
         self.clients = set()
         self.websocket = None
         self.server = None
-        self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 
     def create_widgets(self):
         # Mode Selection
@@ -35,6 +36,10 @@ class KMSharingApp:
         # Server IP Entry (for Client mode)
         tk.Label(self.root, text="Server IP:").pack(pady=5)
         tk.Entry(self.root, textvariable=self.server_ip).pack()
+
+        # Password Entry
+        tk.Label(self.root, text="Password:").pack(pady=5)
+        tk.Entry(self.root, textvariable=self.password, show="*").pack()
 
         # Start/Stop Button
         self.start_button = tk.Button(self.root, text="Start", command=self.start)
@@ -62,9 +67,20 @@ class KMSharingApp:
         threading.Thread(target=self.run_server, daemon=True).start()
 
     def run_server(self):
+        nest_asyncio.apply()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         async def handler(websocket, path):
-            self.clients.add(websocket)
+            # Password verification
             try:
+                auth_message = await websocket.recv()
+                auth_data = json.loads(auth_message)
+                if auth_data.get("password") != self.password.get():
+                    await websocket.send(json.dumps({"error": "Authentication failed"}))
+                    return
+                self.clients.add(websocket)
+                await websocket.send(json.dumps({"status": "Connected"}))
                 async for message in websocket:
                     pass  # Server doesn't expect to receive messages from clients
             finally:
@@ -95,8 +111,7 @@ class KMSharingApp:
             asyncio.run_coroutine_threadsafe(broadcast(json.dumps(event)), asyncio.get_event_loop())
 
         try:
-            self.ssl_context.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
-            self.server = websockets.serve(handler, '0.0.0.0', 8765, ssl=self.ssl_context)
+            self.server = websockets.serve(handler, '0.0.0.0', 8765)
             
             # Start the keyboard and mouse listeners
             keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -104,9 +119,9 @@ class KMSharingApp:
             keyboard_listener.start()
             mouse_listener.start()
 
-            asyncio.get_event_loop().run_until_complete(self.server)
+            loop.run_until_complete(self.server)
             self.connection_status.set("Server running")
-            asyncio.get_event_loop().run_forever()
+            loop.run_forever()
         except Exception as e:
             self.connection_status.set(f"Server error: {e}")
             self.start_button.config(state=tk.NORMAL)
@@ -119,14 +134,19 @@ class KMSharingApp:
         threading.Thread(target=self.run_client, daemon=True).start()
 
     def run_client(self):
-        uri = f"wss://{self.server_ip.get()}:8765"
+        nest_asyncio.apply()
+        uri = f"ws://{self.server_ip.get()}:8765"
         
         async def handle_events():
-            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            ssl_context.load_verify_locations('cert.pem')
-
             try:
-                async with websockets.connect(uri, ssl=ssl_context) as websocket:
+                async with websockets.connect(uri) as websocket:
+                    # Send password for authentication
+                    await websocket.send(json.dumps({"password": self.password.get()}))
+                    response = await websocket.recv()
+                    response_data = json.loads(response)
+                    if "error" in response_data:
+                        raise Exception(response_data["error"])
+                    
                     async for message in websocket:
                         event = json.loads(message)
                         if event['type'] == 'keyboard':
