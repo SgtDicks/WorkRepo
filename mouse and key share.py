@@ -135,6 +135,8 @@ class KMSharingApp:
 
     def run_client(self):
         nest_asyncio.apply()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         uri = f"ws://{self.server_ip.get()}:8765"
         
         async def handle_events():
@@ -147,6 +149,7 @@ class KMSharingApp:
                     if "error" in response_data:
                         raise Exception(response_data["error"])
                     
+                    self.connection_status.set("Client connected")
                     async for message in websocket:
                         event = json.loads(message)
                         if event['type'] == 'keyboard':
@@ -169,16 +172,13 @@ class KMSharingApp:
                                 dx = event['dx']
                                 dy = event['dy']
                                 mouse.Controller().scroll(dx, dy)
-                
-                self.connection_status.set("Client connected")
             except Exception as e:
                 self.connection_status.set(f"Client error: {e}")
                 self.start_button.config(state=tk.NORMAL)
 
-        asyncio.run(handle_events())
+        loop.run_until_complete(handle_events())
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = KMSharingApp(root)
     root.mainloop()
-
