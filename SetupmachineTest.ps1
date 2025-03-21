@@ -359,19 +359,127 @@ function List-InstalledApps {
 }
 
 function Network-Diagnostics {
-    Write-Host "Performing network diagnostics..." -ForegroundColor Cyan
-    try {
-        Write-Host "Pinging external server (google.com)..." -ForegroundColor Cyan
-        Test-Connection -ComputerName "google.com" -Count 4 | Format-Table -AutoSize
-        $localServers = @("10.60.70.11", "192.168.20.186")
-        foreach ($server in $localServers) {
-            Write-Host "Pinging local server $server..." -ForegroundColor Cyan
-            Test-Connection -ComputerName $server -Count 4 | Format-Table -AutoSize
+    # Create the Network Diagnostics form
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "Network Diagnostics Results"
+    $form.Size = New-Object System.Drawing.Size(800, 600)
+    $form.StartPosition = "CenterScreen"
+    $form.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+
+    # Create a RichTextBox to display the results
+    $resultsTextBox = New-Object System.Windows.Forms.RichTextBox
+    $resultsTextBox.Size = New-Object System.Drawing.Size(760, 500)
+    $resultsTextBox.Location = New-Object System.Drawing.Point(20,20)
+    $resultsTextBox.ReadOnly = $true
+    $resultsTextBox.BackColor = [System.Drawing.Color]::White
+    $resultsTextBox.Font = New-Object System.Drawing.Font("Consolas",10)
+    $form.Controls.Add($resultsTextBox)
+
+    # Close button for the form
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "Close"
+    $closeButton.Size = New-Object System.Drawing.Size(100,30)
+    $closeButton.Location = New-Object System.Drawing.Point(680,530)
+    $closeButton.Add_Click({ $form.Close() })
+    $form.Controls.Add($closeButton)
+
+    # Export button to save results to a file
+    $exportButton = New-Object System.Windows.Forms.Button
+    $exportButton.Text = "Export Results"
+    $exportButton.Size = New-Object System.Drawing.Size(120,30)
+    $exportButton.Location = New-Object System.Drawing.Point(550,530)
+    $exportButton.Add_Click({
+        param($sender, $e)
+        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveDialog.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*"
+        $saveDialog.Title = "Save Network Diagnostics Results"
+        $saveDialog.FileName = "NetworkDiagnostics_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+        if ($saveDialog.ShowDialog() -eq 'OK') {
+            $resultsTextBox.Text | Out-File -FilePath $saveDialog.FileName
+            [System.Windows.Forms.MessageBox]::Show("Results exported to $($saveDialog.FileName)", "Export Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
-        Write-Host "Network diagnostics completed." -ForegroundColor Green
-    } catch {
-        Write-Warning "Network diagnostics failed. $_"
+    })
+    $form.Controls.Add($exportButton)
+
+    # Helper function to append colored text to the RichTextBox
+    function Add-ColoredText {
+        param(
+            [string]$text,
+            [System.Drawing.Color]$color = [System.Drawing.Color]::Black
+        )
+        $resultsTextBox.SelectionStart = $resultsTextBox.TextLength
+        $resultsTextBox.SelectionLength = 0
+        $resultsTextBox.SelectionColor = $color
+        $resultsTextBox.AppendText($text)
+        $resultsTextBox.SelectionColor = $resultsTextBox.ForeColor
     }
+
+    # Clear the textbox and start appending network information
+    $resultsTextBox.Clear()
+    
+    # Network adapter information
+    Add-ColoredText "===== NETWORK ADAPTER INFORMATION =====`r`n" -color [System.Drawing.Color]::Blue
+    try {
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
+        foreach ($adapter in $adapters) {
+            Add-ColoredText "Adapter: $($adapter.Name) ($($adapter.InterfaceDescription))`r`n" -color [System.Drawing.Color]::DarkBlue
+            Add-ColoredText "Status: $($adapter.Status)`r`n" -color [System.Drawing.Color]::Green
+            Add-ColoredText "MAC Address: $($adapter.MacAddress)`r`n" -color [System.Drawing.Color]::Black
+            Add-ColoredText "Link Speed: $($adapter.LinkSpeed)`r`n`r`n" -color [System.Drawing.Color]::Black
+        }
+    } catch {
+        Add-ColoredText "Error retrieving network adapter information: $_`r`n" -color [System.Drawing.Color]::Red
+    }
+
+    # IP Configuration information
+    Add-ColoredText "===== IP CONFIGURATION =====`r`n" -color [System.Drawing.Color]::Blue
+    try {
+        $ipConfig = Get-NetIPConfiguration | Where-Object { $_.NetAdapter.Status -eq "Up" }
+        foreach ($config in $ipConfig) {
+            Add-ColoredText "Interface: $($config.InterfaceAlias)`r`n" -color [System.Drawing.Color]::DarkBlue
+            $ipv4 = $config | Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue
+            if ($ipv4) {
+                Add-ColoredText "IPv4 Address: $($ipv4.IPAddress)`r`n" -color [System.Drawing.Color]::Black
+                Add-ColoredText "Prefix Length: $($ipv4.PrefixLength)`r`n" -color [System.Drawing.Color]::Black
+            }
+            if ($config.IPv4DefaultGateway) {
+                Add-ColoredText "Default Gateway: $($config.IPv4DefaultGateway.NextHop)`r`n" -color [System.Drawing.Color]::Black
+            } else {
+                Add-ColoredText "Default Gateway: Not configured`r`n" -color [System.Drawing.Color]::Red
+            }
+            if ($config.DNSServer) {
+                Add-ColoredText "DNS Servers: $($config.DNSServer.ServerAddresses -join ', ')`r`n" -color [System.Drawing.Color]::Black
+            } else {
+                Add-ColoredText "DNS Servers: Not configured`r`n" -color [System.Drawing.Color]::Red
+            }
+            Add-ColoredText "`r`n"
+        }
+    } catch {
+        Add-ColoredText "Error retrieving IP configuration: $_`r`n" -color [System.Drawing.Color]::Red
+    }
+    
+    # Ping test to an external server
+    Add-ColoredText "===== PING TEST (google.com) =====`r`n" -color [System.Drawing.Color]::Blue
+    try {
+        $pingResults = Test-Connection -ComputerName "google.com" -Count 4 -ErrorAction Stop
+        foreach ($ping in $pingResults) {
+            Add-ColoredText "Reply from $($ping.Address): Time=$($ping.ResponseTime)ms`r`n" -color [System.Drawing.Color]::Black
+        }
+    } catch {
+        Add-ColoredText "Ping test failed: $_`r`n" -color [System.Drawing.Color]::Red
+    }
+    
+    # Routing table (route print)
+    Add-ColoredText "`r`n===== ROUTE PRINT =====`r`n" -color [System.Drawing.Color]::Blue
+    try {
+        $routeOutput = route print | Out-String
+        Add-ColoredText "$routeOutput`r`n" -color [System.Drawing.Color]::Black
+    } catch {
+        Add-ColoredText "Failed to retrieve routing table: $_`r`n" -color [System.Drawing.Color]::Red
+    }
+
+    $form.Add_Shown({ $form.Activate() })
+    [void]$form.ShowDialog()
 }
 
 function Check-DiskUsage {
