@@ -6,6 +6,9 @@
 Get-ExecutionPolicy
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
 $appsPath = "C:\apps"
 if (-not (Test-Path -Path $appsPath)) {
     try {
