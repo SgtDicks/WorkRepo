@@ -214,7 +214,7 @@ function Start-Teams {
     }
 }
 
-# Function to clear Teams cache
+# Function to clear Teams cache (updated to handle wildcards)
 function Clear-TeamsCache {
     Write-Host "Do you want to delete the Teams Cache (Y/N)?" -ForegroundColor Cyan
     $clearCache = Read-Host "Enter Y to delete the cache or N to cancel"
@@ -232,16 +232,25 @@ function Clear-TeamsCache {
             Write-Warning "Failed to close Teams. $_"
         }
         Write-Host "Clearing Teams cache" -ForegroundColor Cyan
-        $cachePath = "$env:LOCALAPPDATA\Packages\MSTeams_*\LocalCache\Local\Microsoft\Teams"
-        try {
-            if (Test-Path -Path $cachePath) {
-                Remove-Item -Path $cachePath -Recurse -Force -Confirm:$false
-                Write-Host "Teams cache removed" -ForegroundColor Green
+        # Use Get-ChildItem to process wildcard paths
+        $teamsCacheDirs = Get-ChildItem -Path "$env:LOCALAPPDATA\Packages" -Filter "MSTeams_*" -Directory -ErrorAction SilentlyContinue
+        $cacheRemoved = $false
+        foreach ($dir in $teamsCacheDirs) {
+            $cachePath = Join-Path $dir.FullName "LocalCache\Local\Microsoft\Teams"
+            if (Test-Path $cachePath) {
+                try {
+                    Remove-Item -Path $cachePath -Recurse -Force -ErrorAction Stop
+                    Write-Host "Teams cache removed from: $cachePath" -ForegroundColor Green
+                    $cacheRemoved = $true
+                } catch {
+                    Write-Warning "Failed to remove Teams cache at $cachePath. $_"
+                }
             } else {
-                Write-Warning "Teams cache path not found: $cachePath"
+                Write-Host "Teams cache path not found: $cachePath" -ForegroundColor Yellow
             }
-        } catch {
-            Write-Warning "Failed to remove Teams cache. $_"
+        }
+        if (-not $cacheRemoved) {
+            Write-Warning "No Teams cache directories were found or removed."
         }
         Write-Host "Cleanup complete... Trying to launch Teams" -ForegroundColor Green
         Start-Teams
@@ -379,6 +388,7 @@ function List-InstalledApps {
         Write-Warning "Failed to list installed applications. $_"
     }
 }
+
 # ===============================
 # Network Diagnostics Function
 # ===============================
@@ -410,6 +420,7 @@ function Network-Diagnostics {
     $exportButton.Size = New-Object System.Drawing.Size(120,30)
     $exportButton.Location = New-Object System.Drawing.Point(550,530)
     $exportButton.Add_Click({
+        param($sender, $e)
         $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
         $saveDialog.Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*"
         $saveDialog.Title = "Save Network Diagnostics Results"
@@ -508,6 +519,7 @@ function Check-BatteryHealth {
     $exportButton.Size = New-Object System.Drawing.Size(150,30)
     $exportButton.Location = New-Object System.Drawing.Point(420,430)
     $exportButton.Add_Click({
+        param($sender, $e)
         $reportPath = "$env:USERPROFILE\battery-report.html"
         powercfg /batteryreport /output $reportPath
         if (Test-Path $reportPath) {
@@ -644,6 +656,7 @@ function Manage-PowerPlans {
     }
 
     $activateButton.Add_Click({
+        param($sender, $e)
         if ($listView.SelectedItems.Count -gt 0) {
             $selectedGuid = $listView.SelectedItems[0].Text
             powercfg /setactive $selectedGuid
@@ -654,21 +667,25 @@ function Manage-PowerPlans {
         }
     })
     $balancedButton.Add_Click({
+        param($sender, $e)
         powercfg /setactive SCHEME_BALANCED
         $statusLabel.Text = "Balanced power plan activated"
         Refresh-PowerPlanList
     })
     $powerSaverButton.Add_Click({
+        param($sender, $e)
         powercfg /setactive SCHEME_MAX_BATTERY_LIFE
         $statusLabel.Text = "Power saver plan activated"
         Refresh-PowerPlanList
     })
     $highPerfButton.Add_Click({
+        param($sender, $e)
         powercfg /setactive SCHEME_MIN_POWER_SAVINGS
         $statusLabel.Text = "High performance plan activated"
         Refresh-PowerPlanList
     })
     $ultimatePerfButton.Add_Click({
+        param($sender, $e)
         $ultimateExists = powercfg /list | Where-Object { $_ -match "Ultimate Performance" }
         if (-not $ultimateExists) {
             powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
@@ -686,6 +703,58 @@ function Manage-PowerPlans {
         $form.Activate()
     })
     [void]$form.ShowDialog()
+}
+
+# Function to display the Power Management submenu GUI (new function)
+function Show-PowerManagementMenuGUI {
+    $powerForm = New-Object System.Windows.Forms.Form
+    $powerForm.Text = "Power Management"
+    $powerForm.Size = New-Object System.Drawing.Size(400,300)
+    $powerForm.StartPosition = "CenterScreen"
+    $powerForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Power Management Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(360,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $powerForm.Controls.Add($titleLabel)
+    
+    $batteryButton = New-Object System.Windows.Forms.Button
+    $batteryButton.Text = "Check Battery Health"
+    $batteryButton.Size = New-Object System.Drawing.Size(200,40)
+    $batteryButton.Location = New-Object System.Drawing.Point(100,70)
+    $batteryButton.BackColor = [System.Drawing.Color]::LightGreen
+    $batteryButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $batteryButton.Add_Click({
+        param($sender, $e)
+        Check-BatteryHealth
+    })
+    $powerForm.Controls.Add($batteryButton)
+    
+    $powerPlanButton = New-Object System.Windows.Forms.Button
+    $powerPlanButton.Text = "Manage Power Plans"
+    $powerPlanButton.Size = New-Object System.Drawing.Size(200,40)
+    $powerPlanButton.Location = New-Object System.Drawing.Point(100,120)
+    $powerPlanButton.BackColor = [System.Drawing.Color]::LightGreen
+    $powerPlanButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $powerPlanButton.Add_Click({
+        param($sender, $e)
+        Manage-PowerPlans
+    })
+    $powerForm.Controls.Add($powerPlanButton)
+    
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back"
+    $backButton.Size = New-Object System.Drawing.Size(100,30)
+    $backButton.Location = New-Object System.Drawing.Point(150,200)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $powerForm.Close() })
+    $powerForm.Controls.Add($backButton)
+    
+    [void]$powerForm.ShowDialog()
 }
 
 # (Additional functions such as Manage-SleepSettings, Generate-BatteryReport, Run-PowerTroubleshooter,
@@ -750,7 +819,8 @@ function Show-WindowsMenuGUI {
         $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
         $button.Tag = $option.Action
         $button.Add_Click({
-            $scriptBlock = $this.Tag
+            param($sender, $e)
+            $scriptBlock = $sender.Tag
             & $scriptBlock
         })
         $windowsForm.Controls.Add($button)
@@ -925,7 +995,8 @@ function Show-PrinterMenuGUI {
         $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
         $button.Tag = $option.IP
         $button.Add_Click({
-            $printerIP = $this.Tag
+            param($sender, $e)
+            $printerIP = $sender.Tag
             Map-Printer -PrinterIP $printerIP
         })
         $printerForm.Controls.Add($button)
@@ -1067,7 +1138,7 @@ function Show-MainMenuGUI {
 
     $currentX += $buttonWidth + $horizontalSpacing
 
-    # Power Management button
+    # Power Management button (now calls our new function)
     $powerButton = New-Object System.Windows.Forms.Button
     $powerButton.Text = "Power Management"
     $powerButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
