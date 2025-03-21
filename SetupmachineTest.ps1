@@ -931,13 +931,16 @@ function Show-NewPCSetupMenuGUI {
     )
     $buttonY = 70
     foreach ($opt in $options) {
+        # Create a local copy of the current option
+        $currentOpt = $opt
         $button = New-Object System.Windows.Forms.Button
-        $button.Text = $opt.Text
+        $button.Text = $currentOpt.Text
         $button.Size = New-Object System.Drawing.Size(220,35)
         $button.Location = New-Object System.Drawing.Point(140,$buttonY)
         $button.BackColor = [System.Drawing.Color]::LightBlue
         $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-        $button.Add_Click({ param($sender,$e) & $opt.Action })
+        # Capture the local copy so each button gets its own action
+        $button.Add_Click({ param($sender, $e) & $currentOpt.Action })
         $setupForm.Controls.Add($button)
         $buttonY += 45
     }
