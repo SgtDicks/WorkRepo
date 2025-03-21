@@ -22,7 +22,6 @@ if (-not (Test-Path -Path $appsPath)) {
 # Helper and Utility Functions
 # -------------------------------
 
-# Function to prompt user if they want to proceed
 function Confirm-Action {
     param (
         [string]$message
@@ -40,7 +39,6 @@ function Confirm-Action {
 # PC and Domain Functions
 # -------------------------------
 
-# Function to change PC name based on serial number
 function Change-PCName {
     Write-Host "Changing the PC name based on the serial number..." -ForegroundColor Green
     $serialNumber = (Get-WmiObject -Class Win32_BIOS).SerialNumber
@@ -51,7 +49,6 @@ function Change-PCName {
     }
 }
 
-# Function to join the domain
 function Join-Domain {
     $domainName = Read-Host "Enter the domain name (e.g., rootprojects.local)"
     $ouPath = Read-Host "Enter the Organizational Unit (OU) path (e.g., OU=Computers,DC=rootprojects,DC=local). Leave blank for default location"
@@ -70,7 +67,6 @@ function Join-Domain {
 # Windows Repair Functions
 # -------------------------------
 
-# Function to repair Windows using DISM
 function Repair-Windows {
     Write-Host "Running DISM command to restore health..." -ForegroundColor Green
     Write-Host "This process can take 15-30 minutes depending on your system and may require a restart." -ForegroundColor Yellow
@@ -80,7 +76,6 @@ function Repair-Windows {
     }
 }
 
-# Function to repair system files using SFC
 function Repair-SystemFiles {
     Write-Host "Running System File Checker (SFC)..." -ForegroundColor Green
     Write-Host "This scan can take up to 20 minutes. No restart is required unless issues are found." -ForegroundColor Yellow
@@ -90,7 +85,6 @@ function Repair-SystemFiles {
     }
 }
 
-# Function to repair disk using CHKDSK
 function Repair-Disk {
     Write-Host "Running Check Disk (CHKDSK)..." -ForegroundColor Green
     Write-Host "This operation could take a few hours and will restart the computer. Ensure all work is saved." -ForegroundColor Red
@@ -100,7 +94,6 @@ function Repair-Disk {
     }
 }
 
-# Function to run Windows Update Troubleshooter
 function Run-WindowsUpdateTroubleshooter {
     Write-Host "Running Windows Update Troubleshooter..." -ForegroundColor Green
     Write-Host "This operation might take 5-10 minutes. No restart is required." -ForegroundColor Yellow
@@ -110,7 +103,6 @@ function Run-WindowsUpdateTroubleshooter {
     }
 }
 
-# Function to check and repair DISM
 function Check-And-Repair-DISM {
     Write-Host "Running DISM Check and Repair..." -ForegroundColor Green
     Write-Host "This process might take 30-60 minutes depending on system issues. A restart may be required." -ForegroundColor Yellow
@@ -122,7 +114,6 @@ function Check-And-Repair-DISM {
     }
 }
 
-# Function to reset network
 function Reset-Network {
     Write-Host "Resetting Network Adapters..." -ForegroundColor Green
     Write-Host "This will cause a temporary network outage and may require a restart." -ForegroundColor Red
@@ -136,7 +127,6 @@ function Reset-Network {
     }
 }
 
-# Function to run Windows Memory Diagnostic
 function Run-MemoryDiagnostic {
     Write-Host "Running Windows Memory Diagnostic..." -ForegroundColor Green
     Write-Host "This test will restart your computer and may take 15-30 minutes. Ensure all work is saved." -ForegroundColor Red
@@ -146,7 +136,6 @@ function Run-MemoryDiagnostic {
     }
 }
 
-# Function to run Startup Repair
 function Run-StartupRepair {
     Write-Host "Running Startup Repair..." -ForegroundColor Green
     Write-Host "This process will restart your computer and attempt to fix startup issues. It may take up to an hour." -ForegroundColor Red
@@ -156,7 +145,6 @@ function Run-StartupRepair {
     }
 }
 
-# Function to run Windows Defender Full Scan
 function Run-WindowsDefenderScan {
     Write-Host "Running Windows Defender Full Scan..." -ForegroundColor Green
     Write-Host "This scan can take several hours depending on the size of your drive. No restart is required." -ForegroundColor Yellow
@@ -166,7 +154,6 @@ function Run-WindowsDefenderScan {
     }
 }
 
-# Function to reset Windows Update components
 function Reset-WindowsUpdateComponents {
     Write-Host "Resetting Windows Update components..." -ForegroundColor Green
     Write-Host "This operation may take 10-20 minutes. No restart is required, but Windows Update services will be temporarily unavailable." -ForegroundColor Yellow
@@ -189,7 +176,6 @@ function Reset-WindowsUpdateComponents {
 # Office and Teams Functions
 # -------------------------------
 
-# Function to repair Microsoft Office
 function Repair-Office {
     Write-Host "Repairing Microsoft Office installation..." -ForegroundColor Green
     $OfficeClickToRunPath = "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe"
@@ -201,7 +187,6 @@ function Repair-Office {
     }
 }
 
-# Function to check for Microsoft Office updates
 function Check-OfficeUpdates {
     Write-Host "Checking for Microsoft Office updates..." -ForegroundColor Green
     $OfficeClickToRunPath = "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe"
@@ -213,7 +198,6 @@ function Check-OfficeUpdates {
     }
 }
 
-# Function to download and install MS Teams
 function Download-MS-Teams {
     Write-Host "Downloading MS Teams installer and packages..." -ForegroundColor Green
     $teamsBootstrapperUrl = "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409"
@@ -237,7 +221,6 @@ function Download-MS-Teams {
     }
 }
 
-# Function to start Microsoft Teams
 function Start-Teams {
     Write-Host "Trying to find and launch Microsoft Teams..." -ForegroundColor Cyan
     $possiblePaths = @(
@@ -270,7 +253,6 @@ function Start-Teams {
     }
 }
 
-# Function to clear Teams cache
 function Clear-TeamsCache {
     Write-Host "Do you want to delete the Teams Cache (Y/N)?" -ForegroundColor Cyan
     $clearCache = Read-Host "Enter Y to delete the cache or N to cancel"
@@ -310,7 +292,6 @@ function Clear-TeamsCache {
 # Update, Cleanup, and System Functions
 # -------------------------------
 
-# Function to update Windows
 function Update-Windows {
     Write-Host "Checking for Windows updates..." -ForegroundColor Cyan
     if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
@@ -332,7 +313,6 @@ function Update-Windows {
     }
 }
 
-# Function to clean up disk space
 function Clean-DiskSpace {
     Write-Host "Cleaning up disk space..." -ForegroundColor Cyan
     try {
@@ -343,7 +323,6 @@ function Clean-DiskSpace {
     }
 }
 
-# Function to check system health
 function Check-SystemHealth {
     Write-Host "Checking system health..." -ForegroundColor Cyan
     try {
@@ -354,7 +333,6 @@ function Check-SystemHealth {
     }
 }
 
-# Function to backup important files
 function Backup-Files {
     $source = Read-Host "Enter the path to the directory you want to back up"
     $destination = Read-Host "Enter the backup destination path"
@@ -367,7 +345,6 @@ function Backup-Files {
     }
 }
 
-# Function to list installed applications
 function List-InstalledApps {
     Write-Host "Listing installed applications..." -ForegroundColor Cyan
     try {
@@ -378,7 +355,6 @@ function List-InstalledApps {
     }
 }
 
-# Function to perform network diagnostics
 function Network-Diagnostics {
     Write-Host "Performing network diagnostics..." -ForegroundColor Cyan
     try {
@@ -395,7 +371,6 @@ function Network-Diagnostics {
     }
 }
 
-# Function to check disk usage
 function Check-DiskUsage {
     Write-Host "Checking disk usage..." -ForegroundColor Cyan
     try {
@@ -410,7 +385,6 @@ function Check-DiskUsage {
     }
 }
 
-# Function to get system information
 function Get-SystemInfo {
     Write-Host "Fetching system information..." -ForegroundColor Cyan
     try {
@@ -425,7 +399,6 @@ function Get-SystemInfo {
 # Printer and New PC Setup Functions
 # -------------------------------
 
-# Function to map printer
 function Map-Printer {
     param (
         [string]$PrinterIP
@@ -436,13 +409,11 @@ function Map-Printer {
     Write-Host "Printer mapped successfully." -ForegroundColor Green
 }
 
-# Function to open New PC Files folder
 function Open-NewPCFiles {
     Write-Host "Opening New PC Files folder..." -ForegroundColor Green
     Invoke-Expression "explorer.exe '\\server-syd\Scans\do not delete this folder\new pc files'"
 }
 
-# Function to download and open Ninite installer
 function Download-And-Open-Ninite {
     Write-Host "Downloading Ninite installer..." -ForegroundColor Green
     $niniteUrl = "https://ninite.com/.net4.8-.net4.8.1-7zip-chrome-vlc-zoom/ninite.exe"
@@ -456,7 +427,6 @@ function Download-And-Open-Ninite {
     }
 }
 
-# Function to install Adobe Acrobat Reader 32-bit using winget
 function Install-AdobeReader {
     Write-Host "Installing Adobe Acrobat Reader 32-bit using winget..." -ForegroundColor Green
     Write-Host "This will download and install Adobe Acrobat Reader. Ensure you have an active internet connection." -ForegroundColor Yellow
@@ -476,7 +446,6 @@ function Install-AdobeReader {
     }
 }
 
-# Function to remove HP bloatware
 function Remove-HPBloatware {
     Write-Host "Removing HP bloatware and crapware..." -ForegroundColor Green
     if (Confirm-Action "Do you want to proceed with removing HP bloatware?") {
@@ -565,7 +534,6 @@ function Remove-HPBloatware {
     }
 }
 
-# Function to install all printers via VBS script
 function Install-AllPrinters {
     Write-Host "Installing all printers via VBS script..." -ForegroundColor Green
     $vbsPaths = @(
@@ -594,10 +562,503 @@ function Install-AllPrinters {
 }
 
 # -------------------------------
-# Menu Display Functions
+# GUI Main Menu Functions
 # -------------------------------
 
-# Function to display the New PC Setup submenu
+function Show-MainMenuGUI {
+    $mainForm = New-Object System.Windows.Forms.Form
+    $mainForm.Text = "RPI Repair Menu"
+    $mainForm.Size = New-Object System.Drawing.Size(800,600)
+    $mainForm.StartPosition = "CenterScreen"
+    $mainForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $mainForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $mainForm.MaximizeBox = $false
+
+    $headerLabel = New-Object System.Windows.Forms.Label
+    $headerLabel.Text = "RPI Repair and Maintenance Tool"
+    $headerLabel.Font = New-Object System.Drawing.Font("Arial",16,[System.Drawing.FontStyle]::Bold)
+    $headerLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $headerLabel.Size = New-Object System.Drawing.Size(760,40)
+    $headerLabel.Location = New-Object System.Drawing.Point(20,20)
+    $headerLabel.ForeColor = [System.Drawing.Color]::FromArgb(0,102,204)
+    $mainForm.Controls.Add($headerLabel)
+
+    $buttonWidth = 170
+    $buttonHeight = 120
+    $horizontalSpacing = 20
+    $startX = 20
+    $startY = 80
+    $currentX = $startX
+    $currentY = $startY
+
+    # Windows Repairs button
+    $windowsButton = New-Object System.Windows.Forms.Button
+    $windowsButton.Text = "Windows Repairs"
+    $windowsButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $windowsButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $windowsButton.BackColor = [System.Drawing.Color]::LightBlue
+    $windowsButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $windowsButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $windowsButton.Add_Click({ Show-WindowsMenuGUI })
+    $mainForm.Controls.Add($windowsButton)
+
+    $currentX += $buttonWidth + $horizontalSpacing
+
+    # Office Repairs button
+    $officeButton = New-Object System.Windows.Forms.Button
+    $officeButton.Text = "Office Repairs"
+    $officeButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $officeButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $officeButton.BackColor = [System.Drawing.Color]::LightGreen
+    $officeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $officeButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $officeButton.Add_Click({ Show-OfficeMenuGUI })
+    $mainForm.Controls.Add($officeButton)
+
+    $currentX += $buttonWidth + $horizontalSpacing
+
+    # User Tasks button
+    $userTasksButton = New-Object System.Windows.Forms.Button
+    $userTasksButton.Text = "User Tasks"
+    $userTasksButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $userTasksButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $userTasksButton.BackColor = [System.Drawing.Color]::LightYellow
+    $userTasksButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $userTasksButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $userTasksButton.Add_Click({ Show-UserTasksMenuGUI })
+    $mainForm.Controls.Add($userTasksButton)
+
+    $currentX += $buttonWidth + $horizontalSpacing
+
+    # New PC Setup button
+    $newPCButton = New-Object System.Windows.Forms.Button
+    $newPCButton.Text = "New PC Setup"
+    $newPCButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $newPCButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $newPCButton.BackColor = [System.Drawing.Color]::LightPink
+    $newPCButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $newPCButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $newPCButton.Add_Click({ Show-NewPCSetupMenuGUI })
+    $mainForm.Controls.Add($newPCButton)
+
+    # Second row buttons
+    $currentX = $startX
+    $currentY += $buttonHeight + 20
+
+    # Network Tools button
+    $networkButton = New-Object System.Windows.Forms.Button
+    $networkButton.Text = "Network Tools"
+    $networkButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $networkButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $networkButton.BackColor = [System.Drawing.Color]::LightCyan
+    $networkButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $networkButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $networkButton.Add_Click({ Network-Diagnostics })
+    $mainForm.Controls.Add($networkButton)
+
+    $currentX += $buttonWidth + $horizontalSpacing
+
+    # Power Management button
+    $powerButton = New-Object System.Windows.Forms.Button
+    $powerButton.Text = "Power Management"
+    $powerButton.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+    $powerButton.Location = New-Object System.Drawing.Point($currentX,$currentY)
+    $powerButton.BackColor = [System.Drawing.Color]::LightSalmon
+    $powerButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $powerButton.Font = New-Object System.Drawing.Font("Arial",10,[System.Drawing.FontStyle]::Bold)
+    $powerButton.Add_Click({ Show-PowerManagementMenuGUI })
+    $mainForm.Controls.Add($powerButton)
+
+    [void]$mainForm.ShowDialog()
+}
+
+function Show-WindowsMenuGUI {
+    $windowsForm = New-Object System.Windows.Forms.Form
+    $windowsForm.Text = "Windows Repairs"
+    $windowsForm.Size = New-Object System.Drawing.Size(600,500)
+    $windowsForm.StartPosition = "CenterScreen"
+    $windowsForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $windowsForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $windowsForm.MaximizeBox = $false
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Windows Repair Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(560,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $windowsForm.Controls.Add($titleLabel)
+    
+    $buttonWidth = 170; $buttonHeight = 60; $buttonsPerRow = 3; $horizontalSpacing = 15; $verticalSpacing = 10
+    $startX = 20; $startY = 60; $currentX = $startX; $currentY = $startY; $buttonCount = 0
+    $windowsOptions = @(
+        @{ Text = "DISM RestoreHealth"; Action = { Repair-Windows } },
+        @{ Text = "System File Checker"; Action = { Repair-SystemFiles } },
+        @{ Text = "Check Disk"; Action = { Repair-Disk } },
+        @{ Text = "Windows Update Troubleshooter"; Action = { Run-WindowsUpdateTroubleshooter } },
+        @{ Text = "DISM Check and Repair"; Action = { Check-And-Repair-DISM } },
+        @{ Text = "Network Reset"; Action = { Reset-Network } },
+        @{ Text = "Memory Diagnostic"; Action = { Run-MemoryDiagnostic } },
+        @{ Text = "Startup Repair"; Action = { Run-StartupRepair } },
+        @{ Text = "Defender Full Scan"; Action = { Run-WindowsDefenderScan } },
+        @{ Text = "Reset Update Components"; Action = { Reset-WindowsUpdateComponents } },
+        @{ Text = "List Installed Apps"; Action = { List-InstalledApps } },
+        @{ Text = "Factory Reset"; Action = { Factory-Reset } }
+    )
+    
+    foreach ($option in $windowsOptions) {
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = $option.Text
+        $button.Size = New-Object System.Drawing.Size($buttonWidth,$buttonHeight)
+        $button.Location = New-Object System.Drawing.Point($currentX,$currentY)
+        $button.BackColor = [System.Drawing.Color]::LightBlue
+        $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $button.Tag = $option.Action
+        $button.Add_Click({ param($sender, $e) & $sender.Tag })
+        $windowsForm.Controls.Add($button)
+        $buttonCount++
+        if ($buttonCount % $buttonsPerRow -eq 0) {
+            $currentX = $startX; $currentY += $buttonHeight + $verticalSpacing
+        } else {
+            $currentX += $buttonWidth + $horizontalSpacing
+        }
+    }
+    
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back to Main Menu"
+    $backButton.Size = New-Object System.Drawing.Size(150,40)
+    $backButton.Location = New-Object System.Drawing.Point(225,410)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $windowsForm.Close() })
+    $windowsForm.Controls.Add($backButton)
+    
+    [void]$windowsForm.ShowDialog()
+}
+
+function Show-OfficeMenuGUI {
+    $officeForm = New-Object System.Windows.Forms.Form
+    $officeForm.Text = "Office Repairs"
+    $officeForm.Size = New-Object System.Drawing.Size(400,250)
+    $officeForm.StartPosition = "CenterScreen"
+    $officeForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $officeForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $officeForm.MaximizeBox = $false
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Microsoft Office Repair Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(360,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $officeForm.Controls.Add($titleLabel)
+
+    $repairButton = New-Object System.Windows.Forms.Button
+    $repairButton.Text = "Repair Microsoft Office"
+    $repairButton.Size = New-Object System.Drawing.Size(200,40)
+    $repairButton.Location = New-Object System.Drawing.Point(100,70)
+    $repairButton.BackColor = [System.Drawing.Color]::LightGreen
+    $repairButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $repairButton.Add_Click({ Repair-Office })
+    $officeForm.Controls.Add($repairButton)
+
+    $updateButton = New-Object System.Windows.Forms.Button
+    $updateButton.Text = "Check for Office Updates"
+    $updateButton.Size = New-Object System.Drawing.Size(200,40)
+    $updateButton.Location = New-Object System.Drawing.Point(100,120)
+    $updateButton.BackColor = [System.Drawing.Color]::LightGreen
+    $updateButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $updateButton.Add_Click({ Check-OfficeUpdates })
+    $officeForm.Controls.Add($updateButton)
+
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back to Main Menu"
+    $backButton.Size = New-Object System.Drawing.Size(150,30)
+    $backButton.Location = New-Object System.Drawing.Point(125,180)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $officeForm.Close() })
+    $officeForm.Controls.Add($backButton)
+    
+    [void]$officeForm.ShowDialog()
+}
+
+function Show-UserTasksMenuGUI {
+    $userTasksForm = New-Object System.Windows.Forms.Form
+    $userTasksForm.Text = "User Tasks"
+    $userTasksForm.Size = New-Object System.Drawing.Size(400,350)
+    $userTasksForm.StartPosition = "CenterScreen"
+    $userTasksForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $userTasksForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $userTasksForm.MaximizeBox = $false
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "User Tasks and Maintenance"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(360,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $userTasksForm.Controls.Add($titleLabel)
+
+    $cleanTempButton = New-Object System.Windows.Forms.Button
+    $cleanTempButton.Text = "Clean Temporary Files"
+    $cleanTempButton.Size = New-Object System.Drawing.Size(200,40)
+    $cleanTempButton.Location = New-Object System.Drawing.Point(100,70)
+    $cleanTempButton.BackColor = [System.Drawing.Color]::LightYellow
+    $cleanTempButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $cleanTempButton.Add_Click({ Clean-TempFiles })
+    $userTasksForm.Controls.Add($cleanTempButton)
+
+    $printerButton = New-Object System.Windows.Forms.Button
+    $printerButton.Text = "Printer Mapping"
+    $printerButton.Size = New-Object System.Drawing.Size(200,40)
+    $printerButton.Location = New-Object System.Drawing.Point(100,120)
+    $printerButton.BackColor = [System.Drawing.Color]::LightYellow
+    $printerButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $printerButton.Add_Click({ Show-PrinterMenuGUI })
+    $userTasksForm.Controls.Add($printerButton)
+
+    $teamsButton = New-Object System.Windows.Forms.Button
+    $teamsButton.Text = "Clear Teams Cache"
+    $teamsButton.Size = New-Object System.Drawing.Size(200,40)
+    $teamsButton.Location = New-Object System.Drawing.Point(100,170)
+    $teamsButton.BackColor = [System.Drawing.Color]::LightYellow
+    $teamsButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $teamsButton.Add_Click({ Clear-TeamsCache })
+    $userTasksForm.Controls.Add($teamsButton)
+
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back to Main Menu"
+    $backButton.Size = New-Object System.Drawing.Size(150,30)
+    $backButton.Location = New-Object System.Drawing.Point(125,280)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $userTasksForm.Close() })
+    $userTasksForm.Controls.Add($backButton)
+
+    [void]$userTasksForm.ShowDialog()
+}
+
+function Show-PrinterMenuGUI {
+    $printerForm = New-Object System.Windows.Forms.Form
+    $printerForm.Text = "Printer Mapping"
+    $printerForm.Size = New-Object System.Drawing.Size(450,400)
+    $printerForm.StartPosition = "CenterScreen"
+    $printerForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $printerForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $printerForm.MaximizeBox = $false
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Printer Mapping Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(410,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $printerForm.Controls.Add($titleLabel)
+
+    $printerOptions = @(
+        @{ Text = "Map Sydney Printer"; IP = "192.168.23.10" },
+        @{ Text = "Map Melbourne Printer"; IP = "192.168.33.63" },
+        @{ Text = "Map Melbourne Airport Printer"; IP = "192.168.43.250" },
+        @{ Text = "Map Townsville Printer"; IP = "192.168.100.240" },
+        @{ Text = "Map Brisbane Printer"; IP = "192.168.20.242" },
+        @{ Text = "Map Mackay Printer"; IP = "192.168.90.240" }
+    )
+    $buttonY = 70
+    foreach ($option in $printerOptions) {
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = $option.Text
+        $button.Size = New-Object System.Drawing.Size(220,35)
+        $button.Location = New-Object System.Drawing.Point(115,$buttonY)
+        $button.BackColor = [System.Drawing.Color]::Azure
+        $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $button.Tag = $option.IP
+        $button.Add_Click({ param($sender,$e) Map-Printer -PrinterIP $sender.Tag })
+        $printerForm.Controls.Add($button)
+        $buttonY += 45
+    }
+
+    $allPrintersButton = New-Object System.Windows.Forms.Button
+    $allPrintersButton.Text = "Install All Printers"
+    $allPrintersButton.Size = New-Object System.Drawing.Size(220,35)
+    $allPrintersButton.Location = New-Object System.Drawing.Point(115,$buttonY)
+    $allPrintersButton.BackColor = [System.Drawing.Color]::LightGreen
+    $allPrintersButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $allPrintersButton.Add_Click({ Install-AllPrinters })
+    $printerForm.Controls.Add($allPrintersButton)
+
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back"
+    $backButton.Size = New-Object System.Drawing.Size(100,30)
+    $backButton.Location = New-Object System.Drawing.Point(175,340)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $printerForm.Close() })
+    $printerForm.Controls.Add($backButton)
+    
+    [void]$printerForm.ShowDialog()
+}
+
+function Show-NewPCSetupMenuGUI {
+    $setupForm = New-Object System.Windows.Forms.Form
+    $setupForm.Text = "New PC Setup"
+    $setupForm.Size = New-Object System.Drawing.Size(500,350)
+    $setupForm.StartPosition = "CenterScreen"
+    $setupForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $setupForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $setupForm.MaximizeBox = $false
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "New PC Setup Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(460,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $setupForm.Controls.Add($titleLabel)
+
+    $options = @(
+        @{ Text = "Open New PC Files Folder"; Action = { Open-NewPCFiles } },
+        @{ Text = "Download and Open Ninite"; Action = { Download-And-Open-Ninite } },
+        @{ Text = "Download MS Teams"; Action = { Download-MS-Teams } },
+        @{ Text = "Change PC Name"; Action = { Change-PCName } },
+        @{ Text = "Join RPI Domain"; Action = { Join-Domain } },
+        @{ Text = "Update Windows"; Action = { Update-Windows } },
+        @{ Text = "Install Adobe Reader 32-bit"; Action = { Install-AdobeReader } },
+        @{ Text = "Remove HP Bloatware"; Action = { Remove-HPBloatware } }
+    )
+    $buttonY = 70
+    foreach ($opt in $options) {
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = $opt.Text
+        $button.Size = New-Object System.Drawing.Size(220,35)
+        $button.Location = New-Object System.Drawing.Point(140,$buttonY)
+        $button.BackColor = [System.Drawing.Color]::LightBlue
+        $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $button.Add_Click({ param($sender,$e) & $opt.Action })
+        $setupForm.Controls.Add($button)
+        $buttonY += 45
+    }
+
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back to Main Menu"
+    $backButton.Size = New-Object System.Drawing.Size(150,30)
+    $backButton.Location = New-Object System.Drawing.Point(175,300)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $setupForm.Close() })
+    $setupForm.Controls.Add($backButton)
+    
+    [void]$setupForm.ShowDialog()
+}
+
+function Show-PowerManagementMenuGUI {
+    $powerForm = New-Object System.Windows.Forms.Form
+    $powerForm.Text = "Power Management"
+    $powerForm.Size = New-Object System.Drawing.Size(400,300)
+    $powerForm.StartPosition = "CenterScreen"
+    $powerForm.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Power Management Options"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial",14,[System.Drawing.FontStyle]::Bold)
+    $titleLabel.Size = New-Object System.Drawing.Size(360,30)
+    $titleLabel.Location = New-Object System.Drawing.Point(20,20)
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $powerForm.Controls.Add($titleLabel)
+    
+    $batteryButton = New-Object System.Windows.Forms.Button
+    $batteryButton.Text = "Check Battery Health"
+    $batteryButton.Size = New-Object System.Drawing.Size(200,40)
+    $batteryButton.Location = New-Object System.Drawing.Point(100,70)
+    $batteryButton.BackColor = [System.Drawing.Color]::LightGreen
+    $batteryButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $batteryButton.Add_Click({ param($sender,$e) Check-BatteryHealth })
+    $powerForm.Controls.Add($batteryButton)
+    
+    $powerPlanButton = New-Object System.Windows.Forms.Button
+    $powerPlanButton.Text = "Manage Power Plans"
+    $powerPlanButton.Size = New-Object System.Drawing.Size(200,40)
+    $powerPlanButton.Location = New-Object System.Drawing.Point(100,120)
+    $powerPlanButton.BackColor = [System.Drawing.Color]::LightGreen
+    $powerPlanButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $powerPlanButton.Add_Click({ param($sender,$e) Manage-PowerPlans })
+    $powerForm.Controls.Add($powerPlanButton)
+    
+    $backButton = New-Object System.Windows.Forms.Button
+    $backButton.Text = "Back"
+    $backButton.Size = New-Object System.Drawing.Size(100,30)
+    $backButton.Location = New-Object System.Drawing.Point(150,200)
+    $backButton.BackColor = [System.Drawing.Color]::LightGray
+    $backButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backButton.Add_Click({ $powerForm.Close() })
+    $powerForm.Controls.Add($backButton)
+    
+    [void]$powerForm.ShowDialog()
+}
+
+# (Optional: You could also add a Check-BatteryHealth GUI function if needed)
+
+# -------------------------------
+# Console Menu Functions
+# -------------------------------
+
+function Show-WindowsMenu {
+    Clear-Host
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "      Windows Repairs       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "1: DISM RestoreHealth"
+    Write-Host "2: System File Checker (SFC)"
+    Write-Host "3: Check Disk (CHKDSK)"
+    Write-Host "4: Windows Update Troubleshooter"
+    Write-Host "5: DISM Check and Repair"
+    Write-Host "6: Network Reset"
+    Write-Host "7: Windows Memory Diagnostic"
+    Write-Host "8: Windows Startup Repair"
+    Write-Host "9: Windows Defender Full Scan"
+    Write-Host "10: Reset Windows Update Components"
+    Write-Host "11: List installed Apps"
+    Write-Host "12: Network Diagnostics"
+    Write-Host "13: Factory Reset Device/Reinstall Windows"
+    Write-Host "0: Back to Main Menu"
+}
+
+function Show-OfficeMenu {
+    Clear-Host
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "       Office Repairs       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "1: Repair Microsoft Office"
+    Write-Host "2: Check for Microsoft Office Updates"
+    Write-Host "0: Back to Main Menu"
+}
+
+function Show-UserTasksMenu {
+    Clear-Host
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "         User Tasks         " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "1: Clean Temp Files"
+    Write-Host "2: Printer Mapping"
+    Write-Host "3: Clear Teams Cache"
+    Write-Host "0: Back to Main Menu"
+}
+
+function Show-PrinterMenu {
+    Clear-Host
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "      Printer Mapping       " -ForegroundColor Cyan
+    Write-Host "===========================" -ForegroundColor Cyan
+    Write-Host "1: Map Sydney Printer"
+    Write-Host "2: Map Melbourne Printer"
+    Write-Host "3: Map Melbourne Airport Printer"
+    Write-Host "4: Map Townsville Printer"
+    Write-Host "5: Map Brisbane Printer"
+    Write-Host "6: Map Mackay Printer"
+    Write-Host "7: Install All Printers"
+    Write-Host "0: Back to User Tasks Menu"
+}
+
 function Show-NewPCSetupMenu {
     Clear-Host
     Write-Host "===========================" -ForegroundColor Cyan
@@ -614,176 +1075,111 @@ function Show-NewPCSetupMenu {
     Write-Host "0: Back to Main Menu"
 }
 
-# Function to display the Office Repairs submenu
-function Show-OfficeMenu {
-    Clear-Host
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "       Office Repairs       " -ForegroundColor Cyan
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "1: Repair Microsoft Office"
-    Write-Host "2: Check for Microsoft Office Updates"
-    Write-Host "0: Back to Main Menu"
-}
-
-# Function to display the User Tasks submenu
-function Show-UserTasksMenu {
-    Clear-Host
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "         User Tasks         " -ForegroundColor Cyan
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "1: Clean Temp Files"
-    Write-Host "2: Printer Mapping"
-    Write-Host "3: Clear Teams Cache"
-    Write-Host "0: Back to Main Menu"
-}
-
-# Function to display the Printer Mapping submenu
-function Show-PrinterMenu {
-    Clear-Host
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "      Printer Mapping       " -ForegroundColor Cyan
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "1: Map Sydney Printer"
-    Write-Host "2: Map Melbourne Printer"
-    Write-Host "3: Map Melbourne Airport Printer"
-    Write-Host "4: Map Townsville Printer"
-    Write-Host "5: Map Brisbane Printer"
-    Write-Host "6: Map Mackay Printer"
-    Write-Host "7: Install All Printers"
-    Write-Host "0: Back to User Tasks Menu"
-}
-
-# Function to clean temporary files (Clean-TempFiles)
-function Clean-TempFiles {
-    Write-Host "Cleaning temporary files..." -ForegroundColor Cyan
-    $tempPaths = @(
-        "$env:TEMP\*",
-        "C:\Windows\Temp\*"
-    )
-    foreach ($path in $tempPaths) {
-        try {
-            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "Cleared: $path" -ForegroundColor Green
-        } catch {
-            Write-Warning "Failed to clear: $path. $_"
-        }
-    }
-    Write-Host "Temporary files cleanup completed." -ForegroundColor Green
-}
-
-# Function to display the main menu
-function Show-MainMenu {
-    Clear-Host
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "       RPI Repair Menu      " -ForegroundColor Cyan
-    Write-Host "===========================" -ForegroundColor Cyan
-    Write-Host "1: Windows Repairs"
-    Write-Host "2: Office Repairs"
-    Write-Host "3: User Tasks"
-    Write-Host "4: New PC Setup"
-    Write-Host "0: Exit"
-    Write-Host "===========================" -ForegroundColor DarkYellow
-    Write-Host " Jump Functions are enabled " -ForegroundColor DarkYellow
-    Write-Host "===========================" -ForegroundColor DarkYellow
-}
-
 # -------------------------------
-# Main Script Loop (Console Mode)
+# Main Script Loop
 # -------------------------------
 
-do {
-    Show-MainMenu
-    $mainChoice = Read-Host "Enter your choice (e.g., 1, 1.2, 3.3, etc.)"
-    switch ($mainChoice) {
-        "1" {
-            do {
-                Show-WindowsMenu
-                $windowsChoice = Read-Host "Enter your choice (0-13)"
-                switch ($windowsChoice) {
-                    "1" { Repair-Windows }
-                    "2" { Repair-SystemFiles }
-                    "3" { Repair-Disk }
-                    "4" { Run-WindowsUpdateTroubleshooter }
-                    "5" { Check-And-Repair-DISM }
-                    "6" { Reset-Network }
-                    "7" { Run-MemoryDiagnostic }
-                    "8" { Run-StartupRepair }
-                    "9" { Run-WindowsDefenderScan }
-                    "10" { Reset-WindowsUpdateComponents }
-                    "11" { List-InstalledApps }
-                    "12" { Network-Diagnostics }
-                    "13" { Factory-Reset }
-                    "0" { break }
-                    default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-                }
-                if ($windowsChoice -ne "0") { Pause }
-            } while ($windowsChoice -ne "0")
-        }
-        "2" {
-            do {
-                Show-OfficeMenu
-                $officeChoice = Read-Host "Enter your choice (0-2)"
-                switch ($officeChoice) {
-                    "1" { Repair-Office }
-                    "2" { Check-OfficeUpdates }
-                    "0" { break }
-                    default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-                }
-                if ($officeChoice -ne "0") { Pause }
-            } while ($officeChoice -ne "0")
-        }
-        "3" {
-            do {
-                Show-UserTasksMenu
-                $userTasksChoice = Read-Host "Enter your choice (0-3)"
-                switch ($userTasksChoice) {
-                    "1" { Clean-TempFiles }
-                    "2" {
-                        do {
-                            Show-PrinterMenu
-                            $printerChoice = Read-Host "Enter your choice (0-7)"
-                            switch ($printerChoice) {
-                                "1" { Map-Printer -PrinterIP "192.168.23.10" }
-                                "2" { Map-Printer -PrinterIP "192.168.33.63" }
-                                "3" { Map-Printer -PrinterIP "192.168.43.250" }
-                                "4" { Map-Printer -PrinterIP "192.168.100.240" }
-                                "5" { Map-Printer -PrinterIP "192.168.20.242" }
-                                "6" { Map-Printer -PrinterIP "192.168.90.240" }
-                                "7" { Install-AllPrinters }
-                                "0" { break }
-                                default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-                            }
-                            if ($printerChoice -ne "0") { Pause }
-                        } while ($printerChoice -ne "0")
+# Detect if GUI mode is available
+$guiMode = $true
+try { [System.Windows.Forms.Application] | Out-Null } catch { $guiMode = $false }
+
+if ($guiMode) {
+    Show-MainMenuGUI
+} else {
+    do {
+        Show-MainMenu
+        $mainChoice = Read-Host "Enter your choice (e.g., 1, 1.2, 3.3, etc.)"
+        switch ($mainChoice) {
+            "1" {
+                do {
+                    Show-WindowsMenu
+                    $windowsChoice = Read-Host "Enter your choice (0-13)"
+                    switch ($windowsChoice) {
+                        "1" { Repair-Windows }
+                        "2" { Repair-SystemFiles }
+                        "3" { Repair-Disk }
+                        "4" { Run-WindowsUpdateTroubleshooter }
+                        "5" { Check-And-Repair-DISM }
+                        "6" { Reset-Network }
+                        "7" { Run-MemoryDiagnostic }
+                        "8" { Run-StartupRepair }
+                        "9" { Run-WindowsDefenderScan }
+                        "10" { Reset-WindowsUpdateComponents }
+                        "11" { List-InstalledApps }
+                        "12" { Network-Diagnostics }
+                        "13" { Factory-Reset }
+                        "0" { break }
+                        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                     }
-                    "3" { Clear-TeamsCache }
-                    "0" { break }
-                    default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-                }
-                if ($userTasksChoice -ne "0") { Pause }
-            } while ($userTasksChoice -ne "0")
+                    if ($windowsChoice -ne "0") { Pause }
+                } while ($windowsChoice -ne "0")
+            }
+            "2" {
+                do {
+                    Show-OfficeMenu
+                    $officeChoice = Read-Host "Enter your choice (0-2)"
+                    switch ($officeChoice) {
+                        "1" { Repair-Office }
+                        "2" { Check-OfficeUpdates }
+                        "0" { break }
+                        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
+                    }
+                    if ($officeChoice -ne "0") { Pause }
+                } while ($officeChoice -ne "0")
+            }
+            "3" {
+                do {
+                    Show-UserTasksMenu
+                    $userTasksChoice = Read-Host "Enter your choice (0-3)"
+                    switch ($userTasksChoice) {
+                        "1" { Clean-TempFiles }
+                        "2" {
+                            do {
+                                Show-PrinterMenu
+                                $printerChoice = Read-Host "Enter your choice (0-7)"
+                                switch ($printerChoice) {
+                                    "1" { Map-Printer -PrinterIP "192.168.23.10" }
+                                    "2" { Map-Printer -PrinterIP "192.168.33.63" }
+                                    "3" { Map-Printer -PrinterIP "192.168.43.250" }
+                                    "4" { Map-Printer -PrinterIP "192.168.100.240" }
+                                    "5" { Map-Printer -PrinterIP "192.168.20.242" }
+                                    "6" { Map-Printer -PrinterIP "192.168.90.240" }
+                                    "7" { Install-AllPrinters }
+                                    "0" { break }
+                                    default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
+                                }
+                                if ($printerChoice -ne "0") { Pause }
+                            } while ($printerChoice -ne "0")
+                        }
+                        "3" { Clear-TeamsCache }
+                        "0" { break }
+                        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
+                    }
+                    if ($userTasksChoice -ne "0") { Pause }
+                } while ($userTasksChoice -ne "0")
+            }
+            "4" {
+                do {
+                    Show-NewPCSetupMenu
+                    $newPCSetupChoice = Read-Host "Enter your choice (0-8)"
+                    switch ($newPCSetupChoice) {
+                        "1" { Open-NewPCFiles }
+                        "2" { Download-And-Open-Ninite }
+                        "3" { Download-MS-Teams }
+                        "4" { Change-PCName }
+                        "5" { Join-Domain }
+                        "6" { Update-Windows }
+                        "7" { Install-AdobeReader }
+                        "8" { Remove-HPBloatware }
+                        "0" { break }
+                        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
+                    }
+                    if ($newPCSetupChoice -ne "0") { Pause }
+                } while ($newPCSetupChoice -ne "0")
+            }
+            "0" { Write-Host "Exiting..." -ForegroundColor Yellow }
+            default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
         }
-        "4" {
-            do {
-                Show-NewPCSetupMenu
-                $newPCSetupChoice = Read-Host "Enter your choice (0-8)"
-                switch ($newPCSetupChoice) {
-                    "1" { Open-NewPCFiles }
-                    "2" { Download-And-Open-Ninite }
-                    "3" { Download-MS-Teams }
-                    "4" { Change-PCName }
-                    "5" { Join-Domain }
-                    "6" { Update-Windows }
-                    "7" { Install-AdobeReader }
-                    "8" { Remove-HPBloatware }
-                    "0" { break }
-                    default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-                }
-                if ($newPCSetupChoice -ne "0") { Pause }
-            } while ($newPCSetupChoice -ne "0")
-        }
-        "0" { Write-Host "Exiting..." -ForegroundColor Yellow }
-        default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
-    }
-    if ($mainChoice -notmatch "^(0|[1-4](\.[1-9]+)?)$") { Pause }
-} while ($mainChoice -ne "0")
+        if ($mainChoice -notmatch "^(0|[1-4](\.[1-9]+)?)$") { Pause }
+    } while ($mainChoice -ne "0")
+}
