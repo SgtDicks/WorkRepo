@@ -60,11 +60,8 @@ function Write-GuiLog {
     })
 }
 
-# --- MODIFIED FUNCTION DEFINITIONS (Functions like Start-LongRunningJob, etc. remain unchanged from previous correct version) ---
-# Placeholder for your other functions (Start-LongRunningJob, Change-PCName-Action, etc.)
-# Ensure they are defined before New-ToolButton calls them or their scriptblock-returning counterparts.
+# --- FULL OPERATIONAL FUNCTION DEFINITIONS ---
 
-# ... (All your other ...-Action and ...-ScriptBlock functions go here) ...
 function Start-LongRunningJob {
     param(
         [Parameter(Mandatory=$true)]
@@ -115,37 +112,581 @@ function Start-LongRunningJob {
     Write-GuiLog "Job '$OperationName' (ID: $($job.Id)) submitted. See log for updates." -Color ([System.Drawing.Color]::FromArgb(255,100,100,255))
 }
 
-function Change-PCName-Action { Write-GuiLog "Mock Change-PCName-Action executed" -Color Green }
-function Join-Domain-Action { param([string]$domainName, [string]$ouPath, [System.Management.Automation.PSCredential]$credential) Write-GuiLog "Mock Join-Domain-Action executed for $domainName" -Color Green }
-function Repair-Windows-ScriptBlock { Write-GuiLog "Mock Repair-Windows-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Repair-Windows" } }
-function Repair-SystemFiles-ScriptBlock { Write-GuiLog "Mock Repair-SystemFiles-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Repair-SystemFiles" } }
-function Repair-Disk-Action { Write-GuiLog "Mock Repair-Disk-Action executed" -Color Green }
-function Run-WindowsUpdateTroubleshooter-Action { Write-GuiLog "Mock Run-WindowsUpdateTroubleshooter-Action executed" -Color Green }
-function Check-And-Repair-DISM-ScriptBlock { Write-GuiLog "Mock Check-And-Repair-DISM-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Check-And-Repair-DISM" } }
-function Reset-Network-ScriptBlock { Write-GuiLog "Mock Reset-Network-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Reset-Network" } }
-function Run-MemoryDiagnostic-Action { Write-GuiLog "Mock Run-MemoryDiagnostic-Action executed" -Color Green }
-function Run-StartupRepair-Action { Write-GuiLog "Mock Run-StartupRepair-Action executed" -Color Green }
-function Run-WindowsDefenderScan-ScriptBlock { Write-GuiLog "Mock Run-WindowsDefenderScan-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Run-WindowsDefenderScan" } }
-function Reset-WindowsUpdateComponents-ScriptBlock { Write-GuiLog "Mock Reset-WindowsUpdateComponents-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Reset-WindowsUpdateComponents" } }
-function Start-Teams-Action { Write-GuiLog "Mock Start-Teams-Action executed" -Color Green }
-function Clear-TeamsCache-ScriptBlock { Write-GuiLog "Mock Clear-TeamsCache-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Clear-TeamsCache" } }
-function List-InstalledApps-ScriptBlock { Write-GuiLog "Mock List-InstalledApps-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: List-InstalledApps" } }
-function Network-Diagnostics-ScriptBlock { Write-GuiLog "Mock Network-Diagnostics-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Network-Diagnostics" } }
-function Factory-Reset-Action { Write-GuiLog "Mock Factory-Reset-Action executed" -Color Green }
-function Repair-Office-Action { Write-GuiLog "Mock Repair-Office-Action executed" -Color Green }
-function Check-OfficeUpdates-Action { Write-GuiLog "Mock Check-OfficeUpdates-Action executed" -Color Green }
-function Update-Windows-ScriptBlock { Write-GuiLog "Mock Update-Windows-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Update-Windows" } }
-function Clean-TempFiles-ScriptBlock { Write-GuiLog "Mock Clean-TempFiles-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Clean-TempFiles" } }
-function Map-Printer-Action { param([string]$PrinterConnectionName, [string]$PrinterFriendlyName) Write-GuiLog "Mock Map-Printer-Action for $PrinterFriendlyName ($PrinterConnectionName)" -Color Green }
-function Install-AllPrinters-Action { Write-GuiLog "Mock Install-AllPrinters-Action executed" -Color Green }
-function Open-NewPCFiles-Action { Write-GuiLog "Mock Open-NewPCFiles-Action executed" -Color Green }
-function Download-And-Open-Ninite-ScriptBlock { Write-GuiLog "Mock Download-And-Open-Ninite-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Download-And-Open-Ninite" } }
-function Download-MS-Teams-ScriptBlock { Write-GuiLog "Mock Download-MS-Teams-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Download-MS-Teams" } }
-function Install-AdobeReader-ScriptBlock { Write-GuiLog "Mock Install-AdobeReader-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Install-AdobeReader" } }
-function Remove-HPBloatware-ScriptBlock { Write-GuiLog "Mock Remove-HPBloatware-ScriptBlock called" -Color Green; return { Write-Host "Mock Job: Remove-HPBloatware" } }
+function Change-PCName-Action {
+    Write-GuiLog "Changing the PC name based on the serial number..." -Color Cyan
+    try {
+        $serialNumber = (Get-WmiObject -Class Win32_BIOS -ErrorAction Stop).SerialNumber
+        $newPCName = "RPI-" + $serialNumber.Trim()
+        Write-GuiLog "The new PC name will be: $newPCName" -Color Yellow
+        Write-GuiLog "Computer will be renamed and RESTART. Ensure all work is saved." -Color Red
+        Rename-Computer -NewName $newPCName -Force -Restart
+        Write-GuiLog "Rename command issued. System should restart shortly." -Color Green
+    } catch {
+        Write-GuiLog "Error changing PC name: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Join-Domain-Action {
+    param (
+        [string]$domainName,
+        [string]$ouPath,
+        [System.Management.Automation.PSCredential]$credential
+    )
+    Write-GuiLog "Joining the computer to the domain $domainName..." -Color Cyan
+    if ($ouPath) {
+        Write-GuiLog "Target OU Path: $ouPath" -Color Cyan
+    } else {
+        Write-GuiLog "No OU Path specified, using default computer container." -Color Yellow
+    }
+    Write-GuiLog "Computer will be joined to domain and RESTART. Ensure all work is saved." -Color Red
+    
+    $commandParams = @{
+        DomainName = $domainName
+        Credential = $credential
+        Force      = $true
+        Restart    = $true
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ouPath)) {
+        $commandParams.OUPath = $ouPath
+    }
+
+    try {
+        Add-Computer @commandParams -ErrorAction Stop
+        Write-GuiLog "Join domain command issued. System should restart shortly." -Color Green
+    } catch {
+        if ($_.Exception -is [System.InvalidOperationException] -and ($_.Exception.Message -like "*already in that domain*" -or $_.Exception.Message -like "*already a member of domain*")) {
+            Write-GuiLog "Computer is already a member of the domain '$domainName'." -Color Yellow
+        } else {
+            Write-GuiLog "Error joining domain '$domainName': $($_.Exception.Message)" -Color Red
+        }
+    }
+}
+
+function Repair-Windows-ScriptBlock {
+    Write-GuiLog "Running DISM command to restore health..." -Color Green
+    Write-GuiLog "This process can take 15-30 minutes. A restart may be required." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Starting DISM /Online /Cleanup-Image /RestoreHealth..."
+        dism /online /cleanup-image /restorehealth
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows repair (DISM RestoreHealth) completed."
+    }
+}
+
+function Repair-SystemFiles-ScriptBlock {
+    Write-GuiLog "Running System File Checker (SFC)..." -Color Green
+    Write-GuiLog "This scan can take up to 20 minutes. No restart is required unless issues are found." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Starting SFC /scannow..."
+        sfc /scannow
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "System File Checker (SFC) completed."
+    }
+}
+
+function Repair-Disk-Action {
+    Write-GuiLog "Running Check Disk (CHKDSK) on C:..." -Color Green
+    Write-GuiLog "This operation could take a few hours and WILL RESTART the computer. Ensure all work is saved." -Color Red
+    try {
+        chkdsk C: /F /R /X
+        Write-GuiLog "CHKDSK scheduled for the next restart. The system might prompt for restart or restart automatically." -Color Green
+    } catch {
+        Write-GuiLog "Error scheduling CHKDSK: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Run-WindowsUpdateTroubleshooter-Action {
+    Write-GuiLog "Running Windows Update Troubleshooter..." -Color Green
+    Write-GuiLog "This operation might take 5-10 minutes. An interactive window will open." -Color Yellow
+    try {
+        Start-Process -FilePath "msdt.exe" -ArgumentList "/id WindowsUpdateDiagnostic"
+        Write-GuiLog "Windows Update Troubleshooter started. Please follow its prompts." -Color Green
+    } catch {
+         Write-GuiLog "Failed to start Windows Update Troubleshooter: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Check-And-Repair-DISM-ScriptBlock {
+    Write-GuiLog "Running DISM Check and Repair..." -Color Green
+    Write-GuiLog "This process might take 30-60 minutes. A restart may be required." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Running DISM /Online /Cleanup-Image /CheckHealth..."
+        DISM /Online /Cleanup-Image /CheckHealth
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Running DISM /Online /Cleanup-Image /ScanHealth..."
+        DISM /Online /Cleanup-Image /ScanHealth
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Running DISM /Online /Cleanup-Image /RestoreHealth..."
+        DISM /Online /Cleanup-Image /RestoreHealth
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "DISM Check and Repair completed."
+    }
+}
+
+function Reset-Network-ScriptBlock {
+    Write-GuiLog "Resetting Network Adapters..." -Color Green
+    Write-GuiLog "This will cause a temporary network outage and may require a restart." -Color Red
+    return {
+        $ErrorActionPreference = 'Stop'
+        $Commands = @(
+            { netsh winsock reset },
+            { netsh int ip reset },
+            { ipconfig /release },
+            { ipconfig /renew },
+            { ipconfig /flushdns }
+        )
+        foreach($cmd in $Commands){
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Executing: $($cmd.ToString())"
+            Invoke-Command -ScriptBlock $cmd
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Network reset commands executed. A restart may be required."
+    }
+}
+
+function Run-MemoryDiagnostic-Action {
+    Write-GuiLog "Scheduling Windows Memory Diagnostic..." -Color Green
+    Write-GuiLog "This test WILL RESTART your computer. Ensure all work is saved." -Color Red
+    try {
+        Start-Process -FilePath "mdsched.exe" -ArgumentList "/f" -Verb RunAs
+        Write-GuiLog "Windows Memory Diagnostic scheduled. The computer will restart to run the test." -Color Green
+    } catch {
+        Write-GuiLog "Failed to schedule Windows Memory Diagnostic: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Run-StartupRepair-Action {
+    Write-GuiLog "Initiating Startup Repair..." -Color Green
+    Write-GuiLog "This process WILL RESTART your computer and attempt to fix startup issues." -Color Red
+    try {
+        Write-GuiLog "Configuring boot to recovery environment..." -Color Cyan
+        Start-Process -FilePath "reagentc.exe" -ArgumentList "/boottore" -Verb RunAs -Wait
+        Write-GuiLog "Boot to recovery configured. Restarting computer NOW..." -Color Cyan
+        Shutdown.exe /r /t 0 /f
+    } catch {
+        Write-GuiLog "Failed to initiate Startup Repair: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Run-WindowsDefenderScan-ScriptBlock {
+    Write-GuiLog "Running Windows Defender Full Scan..." -Color Green
+    Write-GuiLog "This scan can take several hours. No restart is required." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Starting Windows Defender Full Scan. This can take a long time..."
+        Start-MpScan -ScanType FullScan -ErrorAction Stop
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows Defender Full Scan process completed or handed off. Monitor Windows Security for progress."
+    }
+}
+
+function Reset-WindowsUpdateComponents-ScriptBlock {
+    Write-GuiLog "Resetting Windows Update components..." -Color Green
+    Write-GuiLog "This operation may take 10-20 minutes. Services will be temporarily unavailable." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        $servicesToManage = @("wuauserv", "cryptSvc", "bits", "msiserver")
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Stopping services: $($servicesToManage -join ', ')"
+        Stop-Service -Name $servicesToManage -Force -ErrorAction SilentlyContinue
+
+        $pathsToRename = @{
+            "C:\Windows\SoftwareDistribution" = "SoftwareDistribution.old"
+            "C:\Windows\System32\catroot2"   = "catroot2.old"
+        }
+        foreach ($entry in $pathsToRename.GetEnumerator()) {
+            $oldPath = $entry.Key
+            $newDirName = $entry.Value
+            $parentDir = Split-Path $oldPath
+            $newFullPath = Join-Path $parentDir $newDirName
+            
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempting to rename $oldPath to $newFullPath"
+            if (Test-Path $newFullPath) {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Removing existing $newFullPath..."
+                Remove-Item -Path $newFullPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if (Test-Path $oldPath) {
+                Rename-Item -Path $oldPath -NewName $newDirName -Force -ErrorAction Stop
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Renamed $oldPath to $newDirName"
+            } else {
+                 Microsoft.PowerShell.Host.WriteTranscriptUtil "$oldPath not found."
+            }
+        }
+        
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Starting services: $($servicesToManage -join ', ')"
+        Start-Service -Name $servicesToManage -ErrorAction SilentlyContinue
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows Update components reset completed."
+    }
+}
+
+function Start-Teams-Action {
+    Write-GuiLog "Trying to find and launch Microsoft Teams..." -Color Cyan
+    $possiblePaths = @(
+        "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe",
+        (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe"),
+        "$env:LOCALAPPDATA\Programs\Teams\current\Teams.exe",
+        "$env:PROGRAMFILES\Teams Installer\Teams.exe",
+        "$env:PROGRAMFILES(X86)\Teams Installer\Teams.exe"
+    )
+    $teamsPath = $null
+    foreach ($path in $possiblePaths) {
+        $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($path)
+        if (Test-Path -LiteralPath $resolvedPath -PathType Leaf) {
+            $teamsPath = $resolvedPath
+            Write-GuiLog "Teams executable found at: $teamsPath" -Color Green
+            break
+        } else {
+            Write-GuiLog "Teams not found at: $resolvedPath (Skipping)" -Color DarkGray
+        }
+    }
+
+    if ($teamsPath) {
+        try {
+            Start-Process -FilePath $teamsPath
+            Write-GuiLog "Microsoft Teams launched." -Color Green
+        } catch {
+            Write-GuiLog "Failed to start Teams from ${teamsPath}: $($_.Exception.Message)" -Color Red
+        }
+    } else {
+        Write-GuiLog "Microsoft Teams executable not found in common locations." -Color Red
+    }
+}
+
+function Clear-TeamsCache-ScriptBlock {
+    Write-GuiLog "Attempting to clear Microsoft Teams cache..." -Color Cyan
+    return {
+        $ErrorActionPreference = 'Continue'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Closing Teams processes (ms-teams, Teams)..."
+        Get-Process -Name "ms-teams", "Teams" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 3
+
+        $cacheLocations = @(
+            "$env:LOCALAPPDATA\Packages\MSTeams_8wekyb3d8bbwe",
+            "$env:LOCALAPPDATA\Packages\MicrosoftTeams_8wekyb3d8bbwe",
+            "$env:LOCALAPPDATA\Microsoft\Teams",
+            "$env:APPDATA\Microsoft\Teams"
+        )
+        
+        foreach ($location in $cacheLocations) {
+            $resolvedLocation = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($location)
+            if (Test-Path -LiteralPath $resolvedLocation) {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempting to remove: $resolvedLocation"
+                try {
+                    Remove-Item -Path $resolvedLocation -Recurse -Force -ErrorAction Stop
+                    Microsoft.PowerShell.Host.WriteTranscriptUtil "Successfully removed: $resolvedLocation"
+                } catch {
+                    Microsoft.PowerShell.Host.WriteTranscriptUtil "WARN: Failed to remove $resolvedLocation. $($_.Exception.Message)"
+                }
+            } else {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Path not found (or already removed): $resolvedLocation"
+            }
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Teams cache clearing process complete. Attempting to restart Teams..."
+        
+        $possiblePathsToStart = @(
+            "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe",
+            (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe")
+        )
+        $teamsExeToStart = $null
+        foreach ($p in $possiblePathsToStart) {
+            $rp = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($p)
+            if (Test-Path -LiteralPath $rp -PathType Leaf) { $teamsExeToStart = $rp; break }
+        }
+        if ($teamsExeToStart) {
+            Start-Process -FilePath $teamsExeToStart
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempted to start Teams from $teamsExeToStart."
+        } else {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Could not find Teams executable to auto-restart. Please start manually."
+        }
+    }
+}
+
+function List-InstalledApps-ScriptBlock {
+    Write-GuiLog "Listing installed applications from registry (safer than Win32_Product)..." -Color Cyan
+    return {
+        $ErrorActionPreference = 'Stop'
+        $uninstallKeys = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+        )
+        $installedApps = foreach ($keyPath in $uninstallKeys) {
+            Get-ItemProperty -Path "$keyPath\*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -and ($_.SystemComponent -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) -and ($_.WindowsInstaller -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) } |
+            Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
+            Sort-Object DisplayName -Unique
+        }
+        
+        if ($installedApps) {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Installed Applications (from Registry):"
+            $installedApps | Format-Table -AutoSize | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
+        } else {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "No applications found or error retrieving list."
+        }
+    }
+}
+
+function Network-Diagnostics-ScriptBlock {
+    Write-GuiLog "Performing network diagnostics..." -Color Cyan
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Pinging external server (google.com)..."
+        Test-Connection -ComputerName "google.com" -Count 4 | Format-Table -AutoSize | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
+
+        $localServers = @("10.60.70.11", "192.168.20.186")
+        foreach ($server in $localServers) {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Pinging local server $server..."
+            Test-Connection -ComputerName $server -Count 4 -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Network diagnostics completed."
+    }
+}
+
+function Factory-Reset-Action {
+    Write-GuiLog "This will reset the system to factory settings. ALL DATA WILL BE LOST!" -Color Red
+    Write-GuiLog "WARNING: All personal files, apps, and settings will be removed. System will restart." -Color Red
+    try {
+        Write-GuiLog "Initiating factory reset..." -Color Cyan
+        Start-Process -FilePath "systemreset.exe" -ArgumentList "-factoryreset" -Verb RunAs
+        Write-GuiLog "Factory reset process started. Follow the on-screen prompts. The system will restart." -Color Green
+    } catch {
+        Write-GuiLog "Failed to initiate factory reset: $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Repair-Office-Action {
+    Write-GuiLog "Attempting to repair Microsoft Office installation..." -Color Green
+    $OfficeClickToRunPath = "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe"
+    if (Test-Path $OfficeClickToRunPath) {
+        try {
+            Start-Process -FilePath $OfficeClickToRunPath -ArgumentList "scenario=Repair platform=x64 culture=en-us DisplayLevel=Full controlleaning=1" -Wait
+            Write-GuiLog "Microsoft Office repair process initiated. Follow prompts if any." -Color Green
+        } catch {
+            Write-GuiLog "Error starting Office repair: $($_.Exception.Message)" -Color Red
+        }
+    } else {
+        Write-GuiLog "Microsoft Office Click-to-Run client not found at $OfficeClickToRunPath." -Color Red
+    }
+}
+
+function Check-OfficeUpdates-Action {
+    Write-GuiLog "Checking for Microsoft Office updates..." -Color Green
+    $OfficeClickToRunPath = "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe"
+    if (Test-Path $OfficeClickToRunPath) {
+        try {
+            Start-Process -FilePath $OfficeClickToRunPath -ArgumentList "scenario=ApplyUpdates platform=x64 culture=en-us DisplayLevel=Full controlleaning=1" -Wait
+            Write-GuiLog "Office update check initiated. Updates will be applied if available. Follow prompts." -Color Green
+        } catch {
+            Write-GuiLog "Error starting Office update check: $($_.Exception.Message)" -Color Red
+        }
+    } else {
+        Write-GuiLog "Microsoft Office Click-to-Run client not found at $OfficeClickToRunPath." -Color Red
+    }
+}
+
+function Update-Windows-ScriptBlock {
+    Write-GuiLog "Checking for Windows updates using PSWindowsUpdate module..." -Color Cyan
+    Write-GuiLog "This may install updates and automatically RESTART the computer." -Color Red
+    return {
+        $ErrorActionPreference = 'Stop'
+        if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "PSWindowsUpdate module not found. Attempting to install for CurrentUser..."
+            try {
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -Confirm:$false -ErrorAction Stop
+                Install-Module -Name PSWindowsUpdate -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false -ErrorAction Stop
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "PSWindowsUpdate module installed."
+            } catch {
+                 throw "Failed to install PSWindowsUpdate module: $($_.Exception.Message)"
+            }
+        }
+        Import-Module PSWindowsUpdate -Force
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Searching for, downloading, and installing Windows updates (AcceptAll, AutoReboot)..."
+        Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose:$false | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows update process completed. Check results above."
+    }
+}
+
+function Clean-TempFiles-ScriptBlock {
+    Write-GuiLog "Cleaning temporary files..." -Color Cyan
+    return {
+        $ErrorActionPreference = 'Continue'
+        $tempPaths = @(
+            "$env:TEMP\*", "C:\Windows\Temp\*", "$env:LOCALAPPDATA\Temp\*"
+        )
+        $cleanedCount = 0; $failedCount = 0
+        foreach ($pathPattern in $tempPaths) {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Processing path pattern: $pathPattern"
+            $itemsToRemove = Get-ChildItem -Path $pathPattern -Recurse -Force -ErrorAction SilentlyContinue
+            if ($itemsToRemove.Count -gt 0) {
+                foreach ($item in $itemsToRemove) {
+                    Microsoft.PowerShell.Host.WriteTranscriptUtil "Removing: $($item.FullName)"
+                    try { Remove-Item -Path $item.FullName -Recurse -Force -ErrorAction Stop }
+                    catch { Microsoft.PowerShell.Host.WriteTranscriptUtil "WARN: Failed to clear '$($item.FullName)': $($_.Exception.Message)"; $failedCount++; Continue }
+                    $cleanedCount++
+                }
+            } else {
+                 Microsoft.PowerShell.Host.WriteTranscriptUtil "No items found for pattern: $pathPattern"
+            }
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Temporary files cleanup completed. Items cleared: $cleanedCount, Failed: $failedCount."
+    }
+}
+
+function Map-Printer-Action {
+    param (
+        [string]$PrinterConnectionName,
+        [string]$PrinterFriendlyName
+    )
+    Write-GuiLog "Mapping printer: $PrinterFriendlyName ($PrinterConnectionName)..." -Color Green
+    try {
+        Add-Printer -ConnectionName $PrinterConnectionName -ErrorAction Stop
+        Write-GuiLog "Printer '$PrinterFriendlyName' mapped successfully from $PrinterConnectionName." -Color Green
+    } catch {
+        Write-GuiLog "Failed to map printer '$PrinterFriendlyName' ($PrinterConnectionName): $($_.Exception.Message)" -Color Red
+    }
+}
+
+function Install-AllPrinters-Action {
+    Write-GuiLog "Installing all printers via VBS script..." -Color Green
+    $vbsPaths = @(
+        "\\server-mel\software\rp files\Printers.vbs",
+        "\\server-syd\Scans\do not delete this folder\new pc files\Printers.vbs"
+    )
+    $vbsFound = $false
+    foreach ($path in $vbsPaths) {
+        if (Test-Path $path) {
+            Write-GuiLog "Found Printers.vbs at $path" -Color Green
+            try {
+                Start-Process -FilePath "cscript.exe" -ArgumentList "//B //Nologo `"$path`"" -Wait
+                Write-GuiLog "Printers installation script ($path) executed." -Color Green
+                $vbsFound = $true; break
+            } catch {
+                Write-GuiLog "Failed to run Printers.vbs from ${path}: $($_.Exception.Message)" -Color Red
+            }
+        } else {
+            Write-GuiLog "Printers.vbs not found or inaccessible at: $path" -Color Yellow
+        }
+    }
+    if (-not $vbsFound) { Write-GuiLog "Printers.vbs script not found in any specified locations." -Color Red }
+}
+
+function Open-NewPCFiles-Action {
+    Write-GuiLog "Opening New PC Files folder..." -Color Green
+    $folderPath = '\\server-syd\Scans\do not delete this folder\new pc files'
+    if(Test-Path $folderPath){
+        try { Invoke-Item $folderPath; Write-GuiLog "Attempted to open folder: $folderPath" -Color Green }
+        catch { Write-GuiLog "Failed to open folder $folderPath : $($_.Exception.Message)" -Color Red }
+    } else { Write-GuiLog "Folder not found or inaccessible: $folderPath" -Color Red }
+}
+
+function Download-And-Open-Ninite-ScriptBlock {
+    Write-GuiLog "Downloading Ninite installer..." -Color Green
+    $niniteUrl = "https://ninite.com/.net4.8-.net4.8.1-7zip-chrome-vlc-zoom/ninite.exe"
+    $outputPath = Join-Path $global:appsPath "ninite_rpi_custom.exe"
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloading Ninite from $niniteUrl to $outputPath..."
+        Invoke-WebRequest -Uri $niniteUrl -OutFile $outputPath -ErrorAction Stop
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloaded Ninite successfully. Opening installer..."
+        Start-Process -FilePath $outputPath
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Ninite installer started. Please follow its prompts."
+    }
+}
+
+function Download-MS-Teams-ScriptBlock {
+    Write-GuiLog "Downloading MS Teams (New) installer and package..." -Color Green
+    $teamsBootstrapperUrl = "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409"
+    $teamsMsixUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
+    $bootstrapperPath = Join-Path $global:appsPath "TeamsSetup_bootstrapper.exe"
+    $msixPath = Join-Path $global:appsPath "MSTeams_x64.msix"
+
+    return {
+        $ErrorActionPreference = 'Stop'
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloading Teams Bootstrapper to $bootstrapperPath..."
+        Invoke-WebRequest -Uri $teamsBootstrapperUrl -OutFile $bootstrapperPath -ErrorAction Stop
+        
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloading Teams MSIX Package to $msixPath..."
+        Invoke-WebRequest -Uri $teamsMsixUrl -OutFile $msixPath -ErrorAction Stop
+
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloads complete. Waiting 5 seconds..."
+        Start-Sleep -Seconds 5
+
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Running Teams Bootstrapper: $bootstrapperPath (may use downloaded MSIX: $msixPath)"
+        Start-Process -FilePath $bootstrapperPath -Wait
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Microsoft Teams (New) installation initiated. Monitor for prompts."
+    }
+}
+
+function Install-AdobeReader-ScriptBlock {
+    Write-GuiLog "Installing Adobe Acrobat Reader DC (latest) using winget..." -Color Green
+    Write-GuiLog "This will download and install Adobe Acrobat Reader. Ensure winget is installed and internet is active." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Stop'
+        if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            throw "winget command not found. Please install App Installer from Microsoft Store or ensure winget is in PATH."
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Installing Adobe Acrobat Reader DC via winget (ID: Adobe.Acrobat.Reader.DC)..."
+        winget install --id Adobe.Acrobat.Reader.DC --exact --accept-source-agreements --accept-package-agreements --silent
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "Adobe Acrobat Reader DC installation via winget initiated (silent)."
+    }
+}
+
+function Remove-HPBloatware-ScriptBlock {
+    Write-GuiLog "Removing HP bloatware and crapware..." -Color Green
+    Write-GuiLog "This can take a while and might remove desired HP utilities if names overlap." -Color Yellow
+    return {
+        $ErrorActionPreference = 'Continue'
+        
+        $AppXPatternsToRemove = @(
+            "*HPSupportAssistant*", "*HPJumpStarts*", "*HPPowerManager*", "*HPPrivacySettings*",
+            "*HPSureShield*", "*HPQuickDrop*", "*HPWorkWell*", "*myHP*", "*HPDesktopSupportUtilities*",
+            "*HPQuickTouch*", "*HPEasyClean*", "*HPPCHardwareDiagnosticsWindows*", "*HPSystemInformation*",
+            "AD2F1837.*"
+        )
+        $ProgramNamePatternsToRemove = @(
+            "HP Client Security Manager", "HP Connection Optimizer", "HP Documentation", "HP MAC Address Manager",
+            "HP Notifications", "HP Security Update Service", "HP System Default Settings", "HP Sure Click",
+            "HP Sure Run", "HP Sure Recover", "HP Sure Sense", "HP Wolf Security", "*HP Support Solutions Framework*"
+        )
+
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "--- Removing AppX Provisioned Packages (HP related) ---"
+        $ProvPackages = Get-AppxProvisionedPackage -Online
+        foreach ($pattern in $AppXPatternsToRemove) {
+            $matchingProv = $ProvPackages | Where-Object { $_.DisplayName -like $pattern -or $_.PackageName -like $pattern }
+            foreach ($ProvPackage in $matchingProv) {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Removing provisioned package: $($ProvPackage.DisplayName) ($($ProvPackage.PackageName))"
+                Remove-AppxProvisionedPackage -PackageName $ProvPackage.PackageName -Online -AllUsers -ErrorAction SilentlyContinue
+            }
+        }
+
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "--- Removing AppX Packages (HP related) ---"
+        $AppxUserPackages = Get-AppxPackage -AllUsers
+        foreach ($pattern in $AppXPatternsToRemove) {
+            $matchingAppx = $AppxUserPackages | Where-Object { $_.Name -like $pattern -or $_.PackageFullName -like $pattern }
+            foreach ($AppxPackage in $matchingAppx) {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Removing AppX package: $($AppxPackage.Name) ($($AppxPackage.PackageFullName))"
+                Remove-AppxPackage -Package $AppxPackage.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+            }
+        }
+        
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "--- Uninstalling Programs (HP related) using Get-Package ---"
+        $InstalledPrograms = Get-Package -ErrorAction SilentlyContinue
+        foreach ($pattern in $ProgramNamePatternsToRemove) {
+            $matchingPrograms = $InstalledPrograms | Where-Object { $_.Name -like $pattern }
+            foreach ($Program in $matchingPrograms) {
+                Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempting to uninstall program: $($Program.Name) (Version: $($Program.Version))"
+                try { $Program | Uninstall-Package -Force -ErrorAction Stop }
+                catch { Microsoft.PowerShell.Host.WriteTranscriptUtil "WARN: Failed to uninstall $($Program.Name) via Uninstall-Package: $($_.Exception.Message)" }
+            }
+        }
+        
+        $MsiExecFallbacks = @('{0E2E04B0-9EDD-11EB-B38C-10604B96B11E}', '{4DA839F0-72CF-11EC-B247-3863BB3CB5A8}')
+        foreach ($guid in $MsiExecFallbacks) {
+            Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempting MSI uninstall for product code: $guid"
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/x `"$guid`" /qn /norestart" -Wait -ErrorAction SilentlyContinue
+        }
+        Microsoft.PowerShell.Host.WriteTranscriptUtil "HP bloatware removal process completed. A restart might be beneficial."
+    }
+}
+
 # --- GUI Construction ---
 $mainForm = New-Object System.Windows.Forms.Form
-$mainForm.Text = "RPI Repair & Setup Tool v1.4" # Updated version
+$mainForm.Text = "RPI Repair & Setup Tool v1.4.1" # Updated version
 $mainForm.Size = New-Object System.Drawing.Size(900, 700)
 $mainForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $mainForm.MinimumSize = New-Object System.Drawing.Size(750, 550)
@@ -172,13 +713,12 @@ $tabControl.Dock = [System.Windows.Forms.DockStyle]::Fill
 function New-ToolButton {
     param(
         [string]$Text,
-        $OnClickActionParam, # Renamed to avoid conflict if $OnClickAction is used elsewhere
+        $OnClickActionParam, 
         [System.Windows.Forms.Control]$ParentControl,
-        [string]$JobScriptBlockFunctionNameParam, # Renamed
-        [string]$OperationNameForJobParam # Renamed
+        [string]$JobScriptBlockFunctionNameParam, 
+        [string]$OperationNameForJobParam 
     )
 
-    # IMMEDIATE DIAGNOSTIC OF RECEIVED PARAMETERS
     Write-GuiLog "New-ToolButton RECEIVED PARAMS for '$Text':" -Color Magenta
     Write-GuiLog "  - OnClickActionParam is ScriptBlock: $($OnClickActionParam -is [scriptblock]) (Value: '$OnClickActionParam')" -Color Magenta -NoTimestamp
     Write-GuiLog "  - JobScriptBlockFunctionNameParam: '$JobScriptBlockFunctionNameParam'" -Color Magenta -NoTimestamp
@@ -191,8 +731,7 @@ function New-ToolButton {
     $button.Padding = New-Object System.Windows.Forms.Padding(10,5,10,5)
     $button.Margin = New-Object System.Windows.Forms.Padding(5)
 
-    # Store parameters intended for this button's action
-    $buttonActionData = @{} # Initialize an empty hashtable for this button's specific data
+    $buttonActionData = @{} 
 
     if ([!string]::IsNullOrWhiteSpace($JobScriptBlockFunctionNameParam) -and [!string]::IsNullOrWhiteSpace($OperationNameForJobParam)) {
         $buttonActionData.Type = "Job"
@@ -201,7 +740,7 @@ function New-ToolButton {
         Write-GuiLog "  CONFIGURING AS JOB for '$Text'. JobFuncName: '$($buttonActionData.JobFuncName)', OpName: '$($buttonActionData.OpName)'" -Color DarkCyan
     } elseif ($OnClickActionParam -is [scriptblock]) {
         $buttonActionData.Type = "Direct"
-        $buttonActionData.Action = $OnClickActionParam # Store the actual scriptblock
+        $buttonActionData.Action = $OnClickActionParam 
         Write-GuiLog "  CONFIGURING AS DIRECT for '$Text'. Action type: $($OnClickActionParam.GetType().FullName)" -Color DarkCyan
     } else {
         $button.Text = "$Text (Misconfigured - Check Logs)"
@@ -214,7 +753,7 @@ function New-ToolButton {
         return $button
     }
     
-    $button.Tag = $buttonActionData # Assign the prepared hashtable to Tag
+    $button.Tag = $buttonActionData 
 
     $button.Add_Click({
         param($sender, $eventArgs)
