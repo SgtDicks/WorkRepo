@@ -38,7 +38,7 @@ $script:outputBox.ReadOnly = $true
 $script:outputBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $script:outputBox.WordWrap = $true
 $script:outputBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
-$script:outputBox.HideSelection = $false # Keep selection visible even when not focused
+$script:outputBox.HideSelection = $false 
 
 # Helper function to write to the GUI output box
 function Write-GuiLog {
@@ -50,7 +50,6 @@ function Write-GuiLog {
     
     if ($script:outputBox.IsDisposed) { return }
 
-    # Ensure updates happen on the UI thread
     $script:outputBox.Invoke([Action]{
         $timestamp = if ($NoTimestamp) { "" } else { "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - " }
         $script:outputBox.SelectionStart = $script:outputBox.TextLength
@@ -63,18 +62,17 @@ function Write-GuiLog {
 
 # --- MODIFIED FUNCTION DEFINITIONS ---
 
-# Helper to run long tasks in background jobs
 function Start-LongRunningJob {
     param(
         [Parameter(Mandatory=$true)]
         [scriptblock]$ScriptBlock,
         [Parameter(Mandatory=$true)]
         [string]$OperationName,
-        [System.Windows.Forms.Button]$ButtonToDisable # Optional button to disable/re-enable
+        [System.Windows.Forms.Button]$ButtonToDisable
     )
 
     if ($ButtonToDisable -and -not $ButtonToDisable.IsDisposed) { $ButtonToDisable.Enabled = $false }
-    Write-GuiLog "Starting background task: $OperationName..." -Color ([System.Drawing.Color]::FromArgb(255, 100, 100, 255)) # Light Purple
+    Write-GuiLog "Starting background job: $OperationName..." -Color ([System.Drawing.Color]::FromArgb(255, 100, 100, 255)) 
 
     $job = Start-Job -ScriptBlock $ScriptBlock -Name $OperationName
     
@@ -82,49 +80,47 @@ function Start-LongRunningJob {
         $evtJob = $Sender
         $jobState = $evtJob.JobStateInfo.State
         $sourceId = $EventArgs.SourceIdentifier
-        # $opName = $evtJob.Name # Retrieve operation name from job's name # Not needed, use $OperationName closure
-
+        
         $script:outputBox.Invoke([Action]{
-            Write-GuiLog "Task '$($evtJob.Name)' state: $jobState" -Color Gray # Use $evtJob.Name for consistency
+            Write-GuiLog "Job '$($evtJob.Name)' state: $jobState" -Color Gray
             if ($jobState -in ('Completed', 'Failed', 'Stopped')) {
-                $jobErrors = $evtJob.ChildJobs[0].Error # Get errors from the actual work item
+                $jobErrors = $evtJob.ChildJobs[0].Error 
                 if ($jobErrors.Count -gt 0) {
-                    Write-GuiLog "Errors from '$($evtJob.Name)':" -Color Red
+                    Write-GuiLog "Errors from job '$($evtJob.Name)':" -Color Red
                     $jobErrors | ForEach-Object { Write-GuiLog $_.ToString() -Color Red -NoTimestamp }
                 }
                 
                 $output = Receive-Job -Job $evtJob -Keep
                 if ($output) {
-                    Write-GuiLog "Output from '$($evtJob.Name)':" -Color DarkGray
+                    Write-GuiLog "Output from job '$($evtJob.Name)':" -Color DarkGray
                     $output | ForEach-Object { Write-GuiLog $_.ToString() -Color DarkGray -NoTimestamp }
                 }
 
                 if ($jobState -eq 'Completed') {
-                     Write-GuiLog "'$($evtJob.Name)' completed successfully." -Color Green
+                     Write-GuiLog "Job '$($evtJob.Name)' completed successfully." -Color Green
                 } else {
-                     Write-GuiLog "'$($evtJob.Name)' finished with state: $jobState. Reason: $($evtJob.JobStateInfo.Reason)" -Color Red
+                     Write-GuiLog "Job '$($evtJob.Name)' finished with state: $jobState. Reason: $($evtJob.JobStateInfo.Reason)" -Color Red
                 }
 
                 if ($ButtonToDisable -and -not $ButtonToDisable.IsDisposed) { $ButtonToDisable.Enabled = $true }
                 
-                # Safely unregister and remove job
                 try { Unregister-Event -SourceIdentifier $sourceId -ErrorAction SilentlyContinue } catch {}
                 try { Remove-Job -Job $evtJob -ErrorAction SilentlyContinue } catch {}
             }
         })
     } | Out-Null
-    Write-GuiLog "Task '$OperationName' (ID: $($job.Id)) submitted. See log for updates." -Color ([System.Drawing.Color]::FromArgb(255,100,100,255))
+    Write-GuiLog "Job '$OperationName' (ID: $($job.Id)) submitted. See log for updates." -Color ([System.Drawing.Color]::FromArgb(255,100,100,255))
 }
 
 function Change-PCName-Action {
     Write-GuiLog "Changing the PC name based on the serial number..." -Color Cyan
     try {
         $serialNumber = (Get-WmiObject -Class Win32_BIOS -ErrorAction Stop).SerialNumber
-        $newPCName = "RPI-" + $serialNumber.Trim() # Ensure no leading/trailing spaces
+        $newPCName = "RPI-" + $serialNumber.Trim() 
         Write-GuiLog "The new PC name will be: $newPCName" -Color Yellow
         Write-GuiLog "Computer will be renamed and RESTART. Ensure all work is saved." -Color Red
         Rename-Computer -NewName $newPCName -Force -Restart
-        Write-GuiLog "Rename command issued. System should restart shortly." -Color Green # This might not be seen
+        Write-GuiLog "Rename command issued. System should restart shortly." -Color Green 
     } catch {
         Write-GuiLog "Error changing PC name: $($_.Exception.Message)" -Color Red
     }
@@ -155,18 +151,23 @@ function Join-Domain-Action {
     }
 
     try {
-        Add-Computer @commandParams
+        Add-Computer @commandParams -ErrorAction Stop
         Write-GuiLog "Join domain command issued. System should restart shortly." -Color Green
     } catch {
-        Write-GuiLog "Error joining domain: $($_.Exception.Message)" -Color Red
+        if ($_.Exception -is [System.InvalidOperationException] -and ($_.Exception.Message -like "*already in that domain*" -or $_.Exception.Message -like "*already a member of domain*")) {
+            Write-GuiLog "Computer is already a member of the domain '$domainName'." -Color Yellow
+        } else {
+            Write-GuiLog "Error joining domain '$domainName': $($_.Exception.Message)" -Color Red
+            # Write-GuiLog "Full Error Record: $($_.ToString())" -Color DarkRed # Uncomment for more details if needed
+        }
     }
 }
 
-function Repair-Windows-ScriptBlock { # Renamed to indicate it returns a scriptblock
+function Repair-Windows-ScriptBlock { 
     Write-GuiLog "Running DISM command to restore health..." -Color Green
     Write-GuiLog "This process can take 15-30 minutes. A restart may be required." -Color Yellow
     return {
-        $ErrorActionPreference = 'Stop' # Ensure errors in job are terminating
+        $ErrorActionPreference = 'Stop' 
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Starting DISM /Online /Cleanup-Image /RestoreHealth..."
         dism /online /cleanup-image /restorehealth
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows repair (DISM RestoreHealth) completed."
@@ -317,11 +318,11 @@ function Reset-WindowsUpdateComponents-ScriptBlock {
 function Start-Teams-Action {
     Write-GuiLog "Trying to find and launch Microsoft Teams..." -Color Cyan
     $possiblePaths = @(
-        "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe", # New Teams
-        (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe"), # Store app link for New Teams
-        "$env:LOCALAPPDATA\Programs\Teams\current\Teams.exe", # Classic Teams (User Install)
-        "$env:PROGRAMFILES\Teams Installer\Teams.exe", # Classic Teams (Machine-Wide)
-        "$env:PROGRAMFILES(X86)\Teams Installer\Teams.exe" # Classic Teams (Machine-Wide 32-bit on 64-bit)
+        "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe", 
+        (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe"), 
+        "$env:LOCALAPPDATA\Programs\Teams\current\Teams.exe", 
+        "$env:PROGRAMFILES\Teams Installer\Teams.exe", 
+        "$env:PROGRAMFILES(X86)\Teams Installer\Teams.exe" 
     )
     $teamsPath = $null
     foreach ($path in $possiblePaths) {
@@ -340,7 +341,7 @@ function Start-Teams-Action {
             Start-Process -FilePath $teamsPath
             Write-GuiLog "Microsoft Teams launched." -Color Green
         } catch {
-            Write-GuiLog "Failed to start Teams from ${teamsPath}: $($_.Exception.Message)" -Color Red # Corrected ${teamsPath}
+            Write-GuiLog "Failed to start Teams from ${teamsPath}: $($_.Exception.Message)" -Color Red 
         }
     } else {
         Write-GuiLog "Microsoft Teams executable not found in common locations." -Color Red
@@ -350,17 +351,15 @@ function Start-Teams-Action {
 function Clear-TeamsCache-ScriptBlock {
     Write-GuiLog "Attempting to clear Microsoft Teams cache..." -Color Cyan
     return {
-        $ErrorActionPreference = 'Continue' # Allow partial success
+        $ErrorActionPreference = 'Continue' 
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Closing Teams processes (ms-teams, Teams)..."
         Get-Process -Name "ms-teams", "Teams" -ErrorAction SilentlyContinue | Stop-Process -Force
-        Start-Sleep -Seconds 3 # Give processes time to close
+        Start-Sleep -Seconds 3 
 
         $cacheLocations = @(
-            # New Teams (WebView2 based)
             "$env:LOCALAPPDATA\Packages\MSTeams_8wekyb3d8bbwe",
-            "$env:LOCALAPPDATA\Packages\MicrosoftTeams_8wekyb3d8bbwe", # Another possible ID for New Teams
-            "$env:LOCALAPPDATA\Microsoft\Teams", # General area for new Teams
-            # Classic Teams
+            "$env:LOCALAPPDATA\Packages\MicrosoftTeams_8wekyb3d8bbwe", 
+            "$env:LOCALAPPDATA\Microsoft\Teams", 
             "$env:APPDATA\Microsoft\Teams"
         )
         
@@ -382,7 +381,7 @@ function Clear-TeamsCache-ScriptBlock {
         
         $possiblePathsToStart = @(
             "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe", 
-            (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe") # Corrected (Join-Path)
+            (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\ms-teams.exe") 
         )
         $teamsExeToStart = $null
         foreach ($p in $possiblePathsToStart) {
@@ -409,9 +408,9 @@ function List-InstalledApps-ScriptBlock {
         )
         $installedApps = foreach ($keyPath in $uninstallKeys) {
             Get-ItemProperty -Path "$keyPath\*" -ErrorAction SilentlyContinue | 
-            Where-Object { $_.DisplayName -and ($_.SystemComponent -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) -and ($_.WindowsInstaller -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) } | # Filter out most system components but keep VC++ Runtimes
+            Where-Object { $_.DisplayName -and ($_.SystemComponent -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) -and ($_.WindowsInstaller -ne 1 -or ($_.DisplayName -match "Visual C\+\+")) } | 
             Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
-            Sort-Object DisplayName -Unique # Unique by all selected properties
+            Sort-Object DisplayName -Unique 
         }
         
         if ($installedApps) {
@@ -430,7 +429,7 @@ function Network-Diagnostics-ScriptBlock {
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Pinging external server (google.com)..."
         Test-Connection -ComputerName "google.com" -Count 4 | Format-Table -AutoSize | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
 
-        $localServers = @("10.60.70.11", "192.168.20.186") # As per original script
+        $localServers = @("10.60.70.11", "192.168.20.186") 
         foreach ($server in $localServers) {
             Microsoft.PowerShell.Host.WriteTranscriptUtil "Pinging local server $server..."
             Test-Connection -ComputerName $server -Count 4 -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil
@@ -456,7 +455,6 @@ function Repair-Office-Action {
     $OfficeClickToRunPath = "C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe"
     if (Test-Path $OfficeClickToRunPath) {
         try {
-            # Using parameters that typically trigger a Quick Repair UI
             Start-Process -FilePath $OfficeClickToRunPath -ArgumentList "scenario=Repair platform=x64 culture=en-us DisplayLevel=Full controlleaning=1" -Wait
             Write-GuiLog "Microsoft Office repair process initiated. Follow prompts if any." -Color Green
         } catch {
@@ -499,7 +497,7 @@ function Update-Windows-ScriptBlock {
         }
         Import-Module PSWindowsUpdate -Force
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Searching for, downloading, and installing Windows updates (AcceptAll, AutoReboot)..."
-        Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose:$false | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil # Verbose to transcript
+        Get-WindowsUpdate -Install -AcceptAll -AutoReboot -Verbose:$false | Out-String | Microsoft.PowerShell.Host.WriteTranscriptUtil 
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Windows update process completed. Check results above."
     }
 }
@@ -507,7 +505,7 @@ function Update-Windows-ScriptBlock {
 function Clean-TempFiles-ScriptBlock {
     Write-GuiLog "Cleaning temporary files..." -Color Cyan
     return {
-        $ErrorActionPreference = 'Continue' # Allow partial success
+        $ErrorActionPreference = 'Continue' 
         $tempPaths = @(
             "$env:TEMP\*", "C:\Windows\Temp\*", "$env:LOCALAPPDATA\Temp\*"
         )
@@ -532,7 +530,7 @@ function Clean-TempFiles-ScriptBlock {
 
 function Map-Printer-Action {
     param (
-        [string]$PrinterConnectionName, # Expecting UNC path e.g. \\server\printer or \\IPAddress
+        [string]$PrinterConnectionName, 
         [string]$PrinterFriendlyName
     )
     Write-GuiLog "Mapping printer: $PrinterFriendlyName ($PrinterConnectionName)..." -Color Green
@@ -555,12 +553,11 @@ function Install-AllPrinters-Action {
         if (Test-Path $path) {
             Write-GuiLog "Found Printers.vbs at $path" -Color Green
             try {
-                # Use cscript for console output (if any), //Nologo to suppress logo
-                Start-Process -FilePath "cscript.exe" -ArgumentList "//B //Nologo `"$path`"" -Wait # //B for Batch mode (suppress prompts to console)
+                Start-Process -FilePath "cscript.exe" -ArgumentList "//B //Nologo `"$path`"" -Wait 
                 Write-GuiLog "Printers installation script ($path) executed." -Color Green
                 $vbsFound = $true; break
             } catch {
-                Write-GuiLog "Failed to run Printers.vbs from ${path}: $($_.Exception.Message)" -Color Red # Corrected ${path}
+                Write-GuiLog "Failed to run Printers.vbs from ${path}: $($_.Exception.Message)" -Color Red 
             }
         } else {
             Write-GuiLog "Printers.vbs not found or inaccessible at: $path" -Color Yellow
@@ -581,7 +578,7 @@ function Open-NewPCFiles-Action {
 function Download-And-Open-Ninite-ScriptBlock {
     Write-GuiLog "Downloading Ninite installer..." -Color Green
     $niniteUrl = "https://ninite.com/.net4.8-.net4.8.1-7zip-chrome-vlc-zoom/ninite.exe"
-    $outputPath = Join-Path $global:appsPath "ninite_rpi_custom.exe" # Specific name for this bundle
+    $outputPath = Join-Path $global:appsPath "ninite_rpi_custom.exe" 
     return {
         $ErrorActionPreference = 'Stop'
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Downloading Ninite from $niniteUrl to $outputPath..."
@@ -594,7 +591,6 @@ function Download-And-Open-Ninite-ScriptBlock {
 
 function Download-MS-Teams-ScriptBlock {
     Write-GuiLog "Downloading MS Teams (New) installer and package..." -Color Green
-    # These URLs point to the New Teams (work/school) bootstrapper and MSIX.
     $teamsBootstrapperUrl = "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409" 
     $teamsMsixUrl = "https://go.microsoft.com/fwlink/?linkid=2196106" 
     $bootstrapperPath = Join-Path $global:appsPath "TeamsSetup_bootstrapper.exe"
@@ -612,7 +608,6 @@ function Download-MS-Teams-ScriptBlock {
         Start-Sleep -Seconds 5
 
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Running Teams Bootstrapper: $bootstrapperPath (may use downloaded MSIX: $msixPath)"
-        # New Teams bootstrapper should handle finding the MSIX if in the same dir or use its internal logic.
         Start-Process -FilePath $bootstrapperPath -Wait 
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Microsoft Teams (New) installation initiated. Monitor for prompts."
     }
@@ -627,7 +622,6 @@ function Install-AdobeReader-ScriptBlock {
             throw "winget command not found. Please install App Installer from Microsoft Store or ensure winget is in PATH."
         }
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Installing Adobe Acrobat Reader DC via winget (ID: Adobe.Acrobat.Reader.DC)..."
-        # Using common ID for Adobe Reader DC, with silent install and agreement flags.
         winget install --id Adobe.Acrobat.Reader.DC --exact --accept-source-agreements --accept-package-agreements --silent
         Microsoft.PowerShell.Host.WriteTranscriptUtil "Adobe Acrobat Reader DC installation via winget initiated (silent)."
     }
@@ -637,16 +631,14 @@ function Remove-HPBloatware-ScriptBlock {
     Write-GuiLog "Removing HP bloatware and crapware..." -Color Green
     Write-GuiLog "This can take a while and might remove desired HP utilities if names overlap." -Color Yellow
     return {
-        $ErrorActionPreference = 'Continue' # Allow script to continue if one removal fails
+        $ErrorActionPreference = 'Continue' 
         
-        # AppX Package Name patterns (use cautiously, can be broad)
         $AppXPatternsToRemove = @(
             "*HPSupportAssistant*", "*HPJumpStarts*", "*HPPowerManager*", "*HPPrivacySettings*",
             "*HPSureShield*", "*HPQuickDrop*", "*HPWorkWell*", "*myHP*", "*HPDesktopSupportUtilities*",
             "*HPQuickTouch*", "*HPEasyClean*", "*HPPCHardwareDiagnosticsWindows*", "*HPSystemInformation*",
-            "AD2F1837.*" # Common HP Publisher ID prefix
+            "AD2F1837.*" 
         )
-        # Program DisplayName patterns (for Get-Package, also use cautiously)
         $ProgramNamePatternsToRemove = @(
             "HP Client Security Manager", "HP Connection Optimizer", "HP Documentation", "HP MAC Address Manager",
             "HP Notifications", "HP Security Update Service", "HP System Default Settings", "HP Sure Click",
@@ -684,7 +676,6 @@ function Remove-HPBloatware-ScriptBlock {
             }
         }
         
-        # Specific MSIExec uninstalls (from original script)
         $MsiExecFallbacks = @('{0E2E04B0-9EDD-11EB-B38C-10604B96B11E}', '{4DA839F0-72CF-11EC-B247-3863BB3CB5A8}')
         foreach ($guid in $MsiExecFallbacks) {
             Microsoft.PowerShell.Host.WriteTranscriptUtil "Attempting MSI uninstall for product code: $guid"
@@ -697,7 +688,7 @@ function Remove-HPBloatware-ScriptBlock {
 
 # --- GUI Construction ---
 $mainForm = New-Object System.Windows.Forms.Form
-$mainForm.Text = "RPI Repair & Setup Tool v1.1"
+$mainForm.Text = "RPI Repair & Setup Tool v1.2" # Updated version
 $mainForm.Size = New-Object System.Drawing.Size(900, 700)
 $mainForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $mainForm.MinimumSize = New-Object System.Drawing.Size(750, 550)
@@ -705,58 +696,93 @@ $mainForm.MinimumSize = New-Object System.Drawing.Size(750, 550)
 $statusStrip = New-Object System.Windows.Forms.StatusStrip
 $statusLabel = New-Object System.Windows.Forms.ToolStripStatusLabel "Ready"
 $statusStrip.Items.Add($statusLabel)
-# $mainForm.Controls.Add($statusStrip) # Will be added in specific order later
 
 $tabControl = New-Object System.Windows.Forms.TabControl
 $tabControl.Dock = [System.Windows.Forms.DockStyle]::Fill 
 
-# Output Panel (for the RichTextBox)
 $outputPanel = New-Object System.Windows.Forms.Panel
 $outputPanel.Dock = [System.Windows.Forms.DockStyle]::Bottom 
-$outputPanel.Size = New-Object System.Drawing.Size($mainForm.ClientSize.Width, 200) # Initial Height
+$outputPanel.Size = New-Object System.Drawing.Size($mainForm.ClientSize.Width, 200) 
 $outputPanel.Controls.Add($script:outputBox)
 
-# Correct layout: StatusStrip at very bottom, then OutputPanel, then TabControl filling the rest.
 $mainForm.Controls.Clear() 
 $mainForm.Controls.AddRange(@($tabControl, $outputPanel, $statusStrip))
-# Re-dock in specific order of appearance from bottom up
 $statusStrip.Dock = [System.Windows.Forms.DockStyle]::Bottom 
 $outputPanel.Dock = [System.Windows.Forms.DockStyle]::Bottom 
 $tabControl.Dock = [System.Windows.Forms.DockStyle]::Fill 
 
-
-# Function to create a button
+# Function to create a button (Updated)
 function New-ToolButton {
     param(
-        [string]$Text, 
+        [string]$Text,
         $OnClickAction, 
-        [System.Windows.Forms.Control]$ParentControl, 
+        [System.Windows.Forms.Control]$ParentControl,
         [string]$JobScriptBlockFunctionName, 
         [string]$OperationNameForJob 
     )
     $button = New-Object System.Windows.Forms.Button
     $button.Text = $Text
     $button.AutoSize = $true
-    $button.MinimumSize = New-Object System.Drawing.Size(250, 0) 
+    $button.MinimumSize = New-Object System.Drawing.Size(250, 0)
     $button.Padding = New-Object System.Windows.Forms.Padding(10,5,10,5)
     $button.Margin = New-Object System.Windows.Forms.Padding(5)
-    
-    if ($JobScriptBlockFunctionName) {
+
+    if ($JobScriptBlockFunctionName -and $OperationNameForJob) { 
+        $capturedJobFuncName = $JobScriptBlockFunctionName
+        $capturedOpName = $OperationNameForJob
+
         $button.Add_Click({
-            $statusLabel.Text = "Starting: $OperationNameForJob..."
-            $scriptBlock = Invoke-Expression $JobScriptBlockFunctionName 
-            Start-LongRunningJob -ScriptBlock $scriptBlock -OperationName $OperationNameForJob -ButtonToDisable $this
+            $statusLabel.Text = "Starting job: $capturedOpName..."
+            Write-GuiLog "Preparing job '$capturedOpName'. ScriptBlock function: '$capturedJobFuncName'." -Color DarkCyan
+
+            if (-not $capturedJobFuncName) {
+                Write-GuiLog "CRITICAL ERROR (Button: $($this.Text)): capturedJobFuncName is null or empty for operation '$capturedOpName'. This should not happen if initial check passed." -Color Red
+                $statusLabel.Text = "Error preparing job: $capturedOpName"
+                return
+            }
+
+            $scriptBlockFromFunc = $null
+            try {
+                $scriptBlockFromFunc = Invoke-Expression $capturedJobFuncName -ErrorAction Stop
+            } catch {
+                Write-GuiLog "ERROR (Button: $($this.Text)): Failed to invoke '$capturedJobFuncName' for operation '$capturedOpName'. Error: $($_.Exception.Message)" -Color Red
+                $statusLabel.Text = "Error invoking script function for: $capturedOpName"
+                return
+            }
+            
+            if (-not $scriptBlockFromFunc) {
+                Write-GuiLog "ERROR (Button: $($this.Text)): Function '$capturedJobFuncName' did NOT return a scriptblock (returned null) for operation '$capturedOpName'." -Color Red
+                $statusLabel.Text = "Error: Script function returned null for: $capturedOpName"
+                return
+            }
+            if ($scriptBlockFromFunc -isnot [scriptblock]) {
+                 Write-GuiLog "ERROR (Button: $($this.Text)): Function '$capturedJobFuncName' returned a value of type '$($scriptBlockFromFunc.GetType().FullName)' instead of [scriptblock] for operation '$capturedOpName'." -Color Red
+                 $statusLabel.Text = "Error: Script function returned wrong type for: $capturedOpName"
+                 return
+            }
+
+            Start-LongRunningJob -ScriptBlock $scriptBlockFromFunc -OperationName $capturedOpName -ButtonToDisable $this
         })
-    } elseif ($OnClickAction) {
+    } elseif ($OnClickAction -is [scriptblock]) { 
         $button.Add_Click({
-            $statusLabel.Text = "Executing: $($button.Text)..."
-            Invoke-Command -ScriptBlock $OnClickAction 
-            $statusLabel.Text = "Finished: $($button.Text). Check log."
+            $statusLabel.Text = "Executing: $($this.Text)..." 
+            try {
+                Invoke-Command -ScriptBlock $OnClickAction
+                Write-GuiLog "Direct action '$($this.Text)' completed." -Color Green
+            } catch {
+                Write-GuiLog "Error during direct action '$($this.Text)': $($_.Exception.Message)" -Color Red
+            }
+            $statusLabel.Text = "Finished: $($this.Text). Check log."
         })
+    } else {
+        $button.Text = "$Text (Misconfigured)"
+        $button.Enabled = $false
+        Write-GuiLog "Button '$Text' is misconfigured: No valid job function or direct action scriptblock provided." -Color Magenta
     }
     $ParentControl.Controls.Add($button)
     return $button
 }
+
 
 function New-ButtonFlowPanel { 
     $panel = New-Object System.Windows.Forms.FlowLayoutPanel
@@ -771,10 +797,10 @@ function New-ButtonFlowPanel {
 # == New PC Setup Tab ==
 $tabNewPC = New-Object System.Windows.Forms.TabPage; $tabNewPC.Text = "New PC Setup"
 $panelNewPC = New-ButtonFlowPanel; $tabNewPC.Controls.Add($panelNewPC)
-New-ToolButton "1: Open New PC Files Folder" {Open-NewPCFiles-Action} $panelNewPC
+New-ToolButton "1: Open New PC Files Folder" {Open-NewPCFiles-Action} $panelNewPC $null $null
 New-ToolButton "2: Download & Run Ninite" $null $panelNewPC "Download-And-Open-Ninite-ScriptBlock" "Ninite Download & Run"
 New-ToolButton "3: Download MS Teams (New)" $null $panelNewPC "Download-MS-Teams-ScriptBlock" "MS Teams Download"
-New-ToolButton "4: Change PC Name (Restarts PC)" {Change-PCName-Action} $panelNewPC
+New-ToolButton "4: Change PC Name (Restarts PC)" {Change-PCName-Action} $panelNewPC $null $null
 
 $groupJoinDomain = New-Object System.Windows.Forms.GroupBox; $groupJoinDomain.Text = "5: Join RPI Domain (Restarts PC)"; $groupJoinDomain.AutoSize = $true; $groupJoinDomain.Padding = New-Object System.Windows.Forms.Padding(10)
 $flowJoinDomain = New-Object System.Windows.Forms.FlowLayoutPanel; $flowJoinDomain.Dock = [System.Windows.Forms.DockStyle]::Fill; $flowJoinDomain.FlowDirection = [System.Windows.Forms.FlowDirection]::TopDown; $flowJoinDomain.AutoSize = $true
@@ -790,7 +816,7 @@ $btnJoinDomain.Add_Click({
         $credential = Get-Credential -Message "Enter credentials for '$domain' domain join"
         if ($credential) { Join-Domain-Action -domainName $domain -ouPath $ou -credential $credential }
         else { Write-GuiLog "Domain join cancelled - no credentials." -Color Yellow }
-    } catch { Write-GuiLog "Domain join failed or cancelled: $($_.Exception.Message)" -Color Yellow }
+    } catch { Write-GuiLog "Domain join failed or cancelled during credential prompt: $($_.Exception.Message)" -Color Yellow }
 })
 $flowJoinDomain.Controls.AddRange(@($lblDomain, $txtDomainName, $lblOU, $txtOUPath, $btnJoinDomain))
 $groupJoinDomain.Controls.Add($flowJoinDomain); $panelNewPC.Controls.Add($groupJoinDomain)
@@ -805,24 +831,24 @@ $tabWindows = New-Object System.Windows.Forms.TabPage; $tabWindows.Text = "Windo
 $panelWindows = New-ButtonFlowPanel; $tabWindows.Controls.Add($panelWindows)
 New-ToolButton "1: DISM RestoreHealth (May Restart)" $null $panelWindows "Repair-Windows-ScriptBlock" "DISM RestoreHealth"
 New-ToolButton "2: System File Checker (SFC)" $null $panelWindows "Repair-SystemFiles-ScriptBlock" "SFC Scan"
-New-ToolButton "3: Check Disk (CHKDSK C:) (Restarts)" {Repair-Disk-Action} $panelWindows
-New-ToolButton "4: Windows Update Troubleshooter" {Run-WindowsUpdateTroubleshooter-Action} $panelWindows
+New-ToolButton "3: Check Disk (CHKDSK C:) (Restarts)" {Repair-Disk-Action} $panelWindows $null $null
+New-ToolButton "4: Windows Update Troubleshooter" {Run-WindowsUpdateTroubleshooter-Action} $panelWindows $null $null
 New-ToolButton "5: DISM Check & Repair (May Restart)" $null $panelWindows "Check-And-Repair-DISM-ScriptBlock" "DISM Check & Repair"
 New-ToolButton "6: Network Reset (May Restart)" $null $panelWindows "Reset-Network-ScriptBlock" "Network Reset"
-New-ToolButton "7: Windows Memory Diagnostic (Restarts)" {Run-MemoryDiagnostic-Action} $panelWindows
-New-ToolButton "8: Windows Startup Repair (Restarts)" {Run-StartupRepair-Action} $panelWindows
+New-ToolButton "7: Windows Memory Diagnostic (Restarts)" {Run-MemoryDiagnostic-Action} $panelWindows $null $null
+New-ToolButton "8: Windows Startup Repair (Restarts)" {Run-StartupRepair-Action} $panelWindows $null $null
 New-ToolButton "9: Windows Defender Full Scan" $null $panelWindows "Run-WindowsDefenderScan-ScriptBlock" "Defender Full Scan"
 New-ToolButton "10: Reset Windows Update Components" $null $panelWindows "Reset-WindowsUpdateComponents-ScriptBlock" "Reset WU Components"
 New-ToolButton "11: List Installed Apps" $null $panelWindows "List-InstalledApps-ScriptBlock" "List Installed Apps"
 New-ToolButton "12: Network Diagnostics" $null $panelWindows "Network-Diagnostics-ScriptBlock" "Network Diagnostics"
-New-ToolButton "13: Factory Reset (Data Loss & Restarts!)" {Factory-Reset-Action} $panelWindows
+New-ToolButton "13: Factory Reset (Data Loss & Restarts!)" {Factory-Reset-Action} $panelWindows $null $null
 $tabControl.Controls.Add($tabWindows)
 
 # == Office Repairs Tab ==
 $tabOffice = New-Object System.Windows.Forms.TabPage; $tabOffice.Text = "Office Repairs"
 $panelOffice = New-ButtonFlowPanel; $tabOffice.Controls.Add($panelOffice)
-New-ToolButton "1: Repair Microsoft Office" {Repair-Office-Action} $panelOffice
-New-ToolButton "2: Check for Microsoft Office Updates" {Check-OfficeUpdates-Action} $panelOffice
+New-ToolButton "1: Repair Microsoft Office" {Repair-Office-Action} $panelOffice $null $null
+New-ToolButton "2: Check for Microsoft Office Updates" {Check-OfficeUpdates-Action} $panelOffice $null $null
 $tabControl.Controls.Add($tabOffice)
 
 # == User Tasks Tab ==
@@ -842,13 +868,15 @@ $printersToMap = @{
     "Mackay Printer (192.168.90.240)" = "\\192.168.90.240"
 }
 foreach ($entry in $printersToMap.GetEnumerator()) {
-    New-ToolButton "Map $($entry.Key)" { Map-Printer-Action -PrinterConnectionName $entry.Value -PrinterFriendlyName $entry.Key } $flowPrinters
+    # For Map-Printer-Action, $OnClickAction needs to be a scriptblock that captures $entry.Value and $entry.Key
+    $actionScriptBlock = [scriptblock]::Create("Map-Printer-Action -PrinterConnectionName '$($entry.Value)' -PrinterFriendlyName '$($entry.Key)'")
+    New-ToolButton "Map $($entry.Key)" $actionScriptBlock $flowPrinters $null $null
 }
-New-ToolButton "Install All Printers (via VBS)" {Install-AllPrinters-Action} $flowPrinters
+New-ToolButton "Install All Printers (via VBS)" {Install-AllPrinters-Action} $flowPrinters $null $null
 $groupPrinters.Controls.Add($flowPrinters); $panelUserTasks.Controls.Add($groupPrinters)
 
 New-ToolButton "3: Clear Teams Cache & Restart Teams" $null $panelUserTasks "Clear-TeamsCache-ScriptBlock" "Clear Teams Cache"
-New-ToolButton "BONUS: Start Microsoft Teams" {Start-Teams-Action} $panelUserTasks 
+New-ToolButton "BONUS: Start Microsoft Teams" {Start-Teams-Action} $panelUserTasks $null $null
 $tabControl.Controls.Add($tabUserTasks)
 
 
@@ -856,12 +884,12 @@ $tabControl.Controls.Add($tabUserTasks)
 $mainForm.Add_Shown({ 
     Write-GuiLog "RPI Repair & Setup Tool GUI Initialized." -Color Blue 
     $statusLabel.Text = "Ready."
-    # Recap initial setup from console
-    Write-GuiLog "--- Initial Setup Recap ---" -Color Purple
-    Write-GuiLog "Current User Execution Policy: $(Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue)" -Color Purple
-    Write-GuiLog "C:\apps path: $global:appsPath. Exists: $(Test-Path $global:appsPath)" -Color Purple
-    Write-GuiLog "Ensure script is run as Administrator for full functionality." -Color Purple
-    Write-GuiLog "--- End Recap ---" -Color Purple
+    # Recap disabled by commenting out below lines
+    # Write-GuiLog "--- Initial Setup Recap ---" -Color Purple
+    # Write-GuiLog "Current User Execution Policy: $(Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue)" -Color Purple
+    # Write-GuiLog "C:\apps path: $global:appsPath. Exists: $(Test-Path $global:appsPath)" -Color Purple
+    # Write-GuiLog "Ensure script is run as Administrator for full functionality." -Color Purple
+    # Write-GuiLog "--- End Recap ---" -Color Purple
 })
 $mainForm.Add_FormClosing({
     Write-GuiLog "Exiting RPI Repair Tool..." -Color Blue
