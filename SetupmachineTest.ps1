@@ -686,7 +686,7 @@ function Remove-HPBloatware-ScriptBlock {
 
 # --- GUI Construction ---
 $mainForm = New-Object System.Windows.Forms.Form
-$mainForm.Text = "RPI Repair & Setup Tool v1.4.1" # Updated version
+$mainForm.Text = "RPI Repair & Setup Tool v1.4.3" # Updated version
 $mainForm.Size = New-Object System.Drawing.Size(900, 700)
 $mainForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 $mainForm.MinimumSize = New-Object System.Drawing.Size(750, 550)
@@ -709,7 +709,7 @@ $statusStrip.Dock = [System.Windows.Forms.DockStyle]::Bottom
 $outputPanel.Dock = [System.Windows.Forms.DockStyle]::Bottom
 $tabControl.Dock = [System.Windows.Forms.DockStyle]::Fill
 
-# Function to create a button (REVISED WITH MORE DIAGNOSTICS)
+# Function to create a button (CORRECTED LOGICAL NOT)
 function New-ToolButton {
     param(
         [string]$Text,
@@ -733,7 +733,8 @@ function New-ToolButton {
 
     $buttonActionData = @{} 
 
-    if ([!string]::IsNullOrWhiteSpace($JobScriptBlockFunctionNameParam) -and [!string]::IsNullOrWhiteSpace($OperationNameForJobParam)) {
+    # CORRECTED CONDITION HERE:
+    if ((-not ([string]::IsNullOrWhiteSpace($JobScriptBlockFunctionNameParam))) -and (-not ([string]::IsNullOrWhiteSpace($OperationNameForJobParam)))) {
         $buttonActionData.Type = "Job"
         $buttonActionData.JobFuncName = $JobScriptBlockFunctionNameParam
         $buttonActionData.OpName = $OperationNameForJobParam
