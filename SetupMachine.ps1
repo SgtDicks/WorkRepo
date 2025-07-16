@@ -518,7 +518,7 @@ function Download-Agent {
         Write-Host "Downloaded Agent MSI Package to $AgentPath" -ForegroundColor Green
 
         Write-Host "Running First Focus Agent Installer..." -ForegroundColor Green
-        Start-Process -FilePath $AgentPath -Wait
+        Start-Process msiexec.exe -ArgumentList "/i `"$AgentPath`" /qn" -Wait
         Write-Host "First Focus Agent installation initiated." -ForegroundColor Green
     } catch {
         Write-Warning "Failed to download or install First Focus. $_"
