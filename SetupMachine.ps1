@@ -506,6 +506,26 @@ function Download-MS-Teams {
     }
 }
 
+function Download-Agent {
+    Write-Host "Downloading Agent..." -ForegroundColor Green
+    $AgentUrl = "https://setup.auplatform.connectwise.com/windows/BareboneAgent/32/Main-RP_Infrastructure_Pty_Ltd_Windows_OS_ITSPlatform_TKNe0edb98f-608d-481f-99a3-8bb6465a4f61/MSI/setup"
+    $AgentPath = "$appsPath\Agent.msi"
+
+    try {
+        # Download FF Agent MSIX Package
+        Write-Host "Downloading First Focus Agent..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $AgentUrl -OutFile $AgentPath
+        Write-Host "Downloaded Agent MSI Package to $AgentPath" -ForegroundColor Green
+
+        Write-Host "Running First Focus Agent Installer..." -ForegroundColor Green
+        Start-Process -FilePath $AgentPath -Wait
+        Write-Host "First Focus Agent installation initiated." -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to download or install First Focus. $_"
+    }
+}
+
+
 # Function to install Adobe Acrobat Reader 32-bit using winget
 function Install-AdobeReader {
     Write-Host "Installing Adobe Acrobat Reader 32-bit using winget..." -ForegroundColor Green
@@ -680,6 +700,7 @@ function Show-NewPCSetupMenu {
     Write-Host "6: Update Windows"
     Write-Host "7: Install Adobe Acrobat Reader 32-bit"
     Write-Host "8: Remove HP Bloatware"
+    Write-Host "9: Install First Focus Agent"
     Write-Host "0: Back to Main Menu"
 }
 
@@ -851,6 +872,7 @@ do {
                     "6" { Update-Windows }
                     "7" { Install-AdobeReader }
                     "8" { Remove-HPBloatware }  # Handle new option
+                    "9" { Download-Agent }
                     "0" { break }
                     default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                 }
