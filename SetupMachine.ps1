@@ -509,7 +509,7 @@ function Download-MS-Teams {
 function Download-Agent {
     Write-Host "Downloading Agent..." -ForegroundColor Green
     $AgentUrl = "https://setup.auplatform.connectwise.com/windows/BareboneAgent/32/Main-RP_Infrastructure_Pty_Ltd_Windows_OS_ITSPlatform_TKNe0edb98f-608d-481f-99a3-8bb6465a4f61/MSI/setup"
-    $AgentPath = "$appsPath\Agent.msi"
+    $AgentPath = "$appsPath\Main-RP_Infrastructure_Pty_Ltd_Windows_OS_ITSPlatform_TKNe0edb98f-608d-481f-99a3-8bb6465a4f61.msi"
 
     try {
         # Download FF Agent MSIX Package
