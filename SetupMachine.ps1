@@ -457,7 +457,7 @@ function Map-Printer {
 # Function to open New PC Files folder
 function Open-NewPCFiles {
     Write-Host "Opening New PC Files folder..." -ForegroundColor Green
-    Invoke-Expression "explorer.exe '\\server-syd\Scans\do not delete this folder\new pc files'"
+    Invoke-Expression "explorer.exe '\\RPI-AUS-FS01.rootprojects.local\RPI Admin Archive\Software\RP Files'"
 }
 
 # Function to download and open Ninite installer
@@ -640,8 +640,7 @@ function Install-AllPrinters {
 
     # List of possible UNC paths for the VBS script
     $vbsPaths = @(
-        "\\server-mel\software\rp files\Printers.vbs",
-        "\\server-syd\Scans\do not delete this folder\new pc files\Printers.vbs"
+        "\\RPI-AUS-FS01.rootprojects.local\RPI Admin Archive\Software\RP Files\Printers.vbs"
     )
 
     $vbsFound = $false
