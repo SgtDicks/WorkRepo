@@ -532,12 +532,15 @@ function Download-bluebeam {
 
     try {
         # Download FF Agent MSIX Package
+        cls
         Write-Host "Downloading Bluebeam 21..." -ForegroundColor Cyan
         Invoke-WebRequest -Uri $BBUrl -OutFile $BBPath
-        Write-Host "Downloaded Agent MSI Package to $BBPath" -ForegroundColor Green
-
+        Write-Host "Downloaded B MSI Package to $BBPath" -ForegroundColor Green
+        cls
         Write-Host "Running Bluebeam 21 Installer..." -ForegroundColor Green
-        Start-Process -FilePath $BBPath -Wait
+        Expand-Archive -Path BBPath -DestinationPath "$appsPath\BluebeamDeploy" -Force
+        Start-Process msiexec.exe -ArgumentList "/i `"$appsPath\BluebeamDeploy\Bluebeam Revu x64 21.msi`" /qn" -Wait
+        
         Write-Host "Bluebeam 21 installation initiated." -ForegroundColor Green
     } catch {
         Write-Warning "Failed to download or install Bluebeam. $_"
