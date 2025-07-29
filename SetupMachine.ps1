@@ -525,6 +525,25 @@ function Download-Agent {
     }
 }
 
+function Download-bluebeam {
+    Write-Host "Downloading Bluebeam 21..." -ForegroundColor Green
+    $BBUrl = "https://www.bluebeam.com/MSIdeployx64"
+    $BBPath = "$appsPath\BluebeamDeploy.zip"
+
+    try {
+        # Download FF Agent MSIX Package
+        Write-Host "Downloading Bluebeam 21..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $BBUrl -OutFile $BBPath
+        Write-Host "Downloaded Agent MSI Package to $BBPath" -ForegroundColor Green
+
+        Write-Host "Running Bluebeam 21 Installer..." -ForegroundColor Green
+        Start-Process -FilePath $BBPath -Wait
+        Write-Host "Bluebeam 21 installation initiated." -ForegroundColor Green
+    } catch {
+        Write-Warning "Failed to download or install Bluebeam. $_"
+    }
+}
+
 
 # Function to install Adobe Acrobat Reader 32-bit using winget
 function Install-AdobeReader {
@@ -701,6 +720,7 @@ function Show-NewPCSetupMenu {
     Write-Host "7: Install Adobe Acrobat Reader 32-bit"
     Write-Host "8: Remove HP Bloatware"
     Write-Host "9: Install First Focus Agent"
+    Write-Host "10: Install Bluebeam 21"
     Write-Host "0: Back to Main Menu"
 }
 
@@ -873,6 +893,7 @@ do {
                     "7" { Install-AdobeReader }
                     "8" { Remove-HPBloatware }  # Handle new option
                     "9" { Download-Agent }
+                    "10" { Download-bluebeam }
                     "0" { break }
                     default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                 }
