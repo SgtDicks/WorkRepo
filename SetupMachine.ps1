@@ -14,6 +14,33 @@ if (-not (Test-Path -Path $appsPath)) {
 } else {
     Write-Host "Directory already exists: $appsPath" -ForegroundColor Yellow
 }
+$ariaUrl = "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip"
+$ariaZip = "C:\apps\aria2.zip"
+$ariaFolder = "C:\apps\aria2"
+$ariaExe = Join-Path $ariaFolder "aria2c.exe"
+$Bluebeamurl = "https://www.bluebeam.com/MSIdeployx64"
+$BBoutputFile = "C:\apps\Bluebeam21installer.zip"
+$BBpath = "C:\apps\Bluebeam21installer"
+
+# Ensure directories exist
+New-Item -ItemType Directory -Force -Path "C:\apps" | Out-Null
+New-Item -ItemType Directory -Force -Path $ariaFolder | Out-Null
+
+rite-Host "Downloading aria2..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $ariaUrl -OutFile $ariaZip
+
+# Extract it
+Write-Host "Extracting aria2..." -ForegroundColor Cyan
+Expand-Archive -Path $ariaZip -DestinationPath $ariaFolder -Force
+
+# Find actual aria2c.exe (some zips nest a folder)
+$ariaExePath = Get-ChildItem -Path $ariaFolder -Recurse -Filter "aria2c.exe" | Select-Object -First 1
+if (-not $ariaExePath) {
+    Write-Error "aria2c.exe not found after extraction."
+    exit 1
+}
+
+cls
 
 # Function to prompt user if they want to proceed
 function Confirm-Action {
@@ -525,28 +552,30 @@ function Download-Agent {
     }
 }
 
-function Download-bluebeam {
-    Write-Host "Downloading Bluebeam 21..." -ForegroundColor Green
-    $BBUrl = "https://www.bluebeam.com/MSIdeployx64"
-    $BBPath = "$appsPath\BluebeamDeploy.zip"
+function Download-bluebeam21 {
+    cls
+    Write-Host 'Downloading Bluebeam 21 MSI package…' -Foreground Cyan
+    Start-Process -FilePath $ariaExePath.FullName -ArgumentList "-x 16 -s 16 -o `"$([System.IO.Path]::GetFileName($BBoutputFile))`" -d `"$([System.IO.Path]::GetDirectoryName($BBoutputFile))`" $bluebeamurl" -Wait
+    
+    cls
+    Write-Host 'Extracting Bluebeam installer…' -Foreground Cyan
+    Expand-Archive -Path $BBoutputFile -DestinationPath $BBPath -Force
 
-    try {
-        # Download FF Agent MSIX Package
-        cls
-        Write-Host "Downloading Bluebeam 21..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $BBUrl -OutFile $BBPath
-        Write-Host "Downloaded B MSI Package to $BBPath" -ForegroundColor Green
-        cls
-        Write-Host "Running Bluebeam 21 Installer..." -ForegroundColor Green
-        Expand-Archive -Path BBPath -DestinationPath "$appsPath\BluebeamDeploy" -Force
-        Start-Process msiexec.exe -ArgumentList "/i `"$appsPath\BluebeamDeploy\Bluebeam Revu x64 21.msi`" /qn" -Wait
-        
-        Write-Host "Bluebeam 21 installation initiated." -ForegroundColor Green
-    } catch {
-        Write-Warning "Failed to download or install Bluebeam. $_"
+    $BBmsi = Get-ChildItem $BBPath -Filter '*.msi' -Recurse |
+           Select-Object -First 1
+
+    if (-not $BBmsi) {
+        throw 'MSI not found inside BBPath.'
     }
+    cls
+    Write-Host "Running $($BBmsi.Name)…" -Foreground Cyan
+    Start-Process -FilePath "$BBpath\Bluebeam Revu x64 21.msi" -Wait
+
+    Write-Host 'Bluebeam 21 installation completed.' -Foreground Green
 }
 
+   
+    
 
 # Function to install Adobe Acrobat Reader 32-bit using winget
 function Install-AdobeReader {
@@ -894,9 +923,9 @@ do {
                     "5" { Join-Domain }
                     "6" { Update-Windows }
                     "7" { Install-AdobeReader }
-                    "8" { Remove-HPBloatware }  # Handle new option
+                    "8" { Remove-HPBloatware }
                     "9" { Download-Agent }
-                    "10" { Download-bluebeam }
+                    "10" { Download-bluebeam21 }
                     "0" { break }
                     default { Write-Host "Invalid choice, please try again." -ForegroundColor Red }
                 }
