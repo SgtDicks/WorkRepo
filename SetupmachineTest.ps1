@@ -25,12 +25,12 @@ $BBpath = "C:\apps\Bluebeam21installer"
 # Ensure directories exist
 New-Item -ItemType Directory -Force -Path "C:\apps" | Out-Null
 New-Item -ItemType Directory -Force -Path $ariaFolder | Out-Null
-
-Write-Host "Downloading aria2..." -ForegroundColor Cyan
+cls
+Write-Host "Downloading Setup files" -ForegroundColor Cyan
 Invoke-WebRequest -Uri $ariaUrl -OutFile $ariaZip
-
 # Extract it
-Write-Host "Extracting aria2..." -ForegroundColor Cyan
+cls
+Write-Host "Extracting Setup files" -ForegroundColor Cyan
 Expand-Archive -Path $ariaZip -DestinationPath $ariaFolder -Force
 
 # Find actual aria2c.exe (some zips nest a folder)
