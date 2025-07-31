@@ -1,4 +1,4 @@
-# Set Execution Policy
+p# Set Execution Policy
 Get-ExecutionPolicy
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
@@ -26,11 +26,11 @@ $BBpath = "C:\apps\Bluebeam21installer"
 New-Item -ItemType Directory -Force -Path "C:\apps" | Out-Null
 New-Item -ItemType Directory -Force -Path $ariaFolder | Out-Null
 
-rite-Host "Downloading aria2..." -ForegroundColor Cyan
+rite-Host "Downloading Setup files..." -ForegroundColor Cyan
 Invoke-WebRequest -Uri $ariaUrl -OutFile $ariaZip
 
 # Extract it
-Write-Host "Extracting aria2..." -ForegroundColor Cyan
+Write-Host "Extracting Setup Files..." -ForegroundColor Cyan
 Expand-Archive -Path $ariaZip -DestinationPath $ariaFolder -Force
 
 # Find actual aria2c.exe (some zips nest a folder)
