@@ -517,7 +517,7 @@ function Download-MS-Teams {
 
         # Download Teams MSIX Package
         Write-Host "Downloading Teams MSIX Package..." -ForegroundColor Cyan
-        Start-Process -FilePath $ariaExePath.FullName -ArgumentList "-x 5 -s 5 -o `"$([System.IO.Path]::GetFileName($msixPath))`" -d `"$([System.IO.Path]::GetDirectoryName($msixPath))`" $teamsMsixUrl" -Wait
+        Start-Process -FilePath $ariaExePath.FullName -ArgumentList "-x 1 -s 1 -o `"$([System.IO.Path]::GetFileName($msixPath))`" -d `"$([System.IO.Path]::GetDirectoryName($msixPath))`" $teamsMsixUrl" -Wait
         Write-Host "Downloaded Teams MSIX Package to $msixPath" -ForegroundColor Green
 
         # Wait for 5 seconds
