@@ -68,26 +68,16 @@ function Change-PCName {
 }
 
 # Function to join the domain
-function Join-Domain {
-    # Prompt user for domain details
-    $domainName = Read-Host "Enter the domain name (e.g., rootprojects.local)"
-    $ouPath = Read-Host "Enter the Organizational Unit (OU) path (e.g., OU=Computers,DC=rootprojects,DC=local). Leave blank for default location"
-    $credential = Get-Credential -Message "Enter credentials with permission to join the domain"
-
-    # Construct the Add-Computer command
-    $command = "Add-Computer -DomainName '$domainName' -Credential \$credential -Force -Restart"
-
-    # If an OU path is provided, append it to the command
-    if ($ouPath -ne "") {
-        $command += " -OUPath '$ouPath'"
-    }
-
-    # Display confirmation and execute the command
-    Write-Host "Joining the computer to the domain $domainName..." -ForegroundColor Green
-    if (Confirm-Action "This will join the computer to the domain and require a restart.") {
-        Invoke-Expression $command
-    }
+function Join-Domain{
+ param([string]$OU,[switch]$Restart,[switch]$Force)
+ $d='rootprojects.local'
+ $c=Get-Credential
+ if((Get-CimInstance Win32_ComputerSystem).PartOfDomain){return}
+ $p=@{DomainName=$d;Credential=$c}
+ if($OU){$p.OUPath=$OU};if($Restart){$p.Restart=$true};if($Force){$p.Force=$true}
+ Add-Computer @p
 }
+
 
 # Function to repair Windows using DISM
 function Repair-Windows {
