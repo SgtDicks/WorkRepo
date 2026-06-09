@@ -677,15 +677,21 @@ function Download-Bluebeam21 {
 
 
 function Download-Revizto {
-    Ensure-Directory -Path $script:appsPath
+    Ensure-Aria2Ready
 
     Write-Log -Message "This will download and silently install Revizto." -Level "Warning"
     if (-not (Confirm-Action -Message "Install Revizto?")) {
         return
     }
 
-    Write-Log -Message "Downloading Revizto installer." -Level "Info"
-    Invoke-WebRequest -Uri $script:reviztoUrl -OutFile $script:reviztoMsiPath -UseBasicParsing
+    if (Test-Path -Path $script:reviztoMsiPath) {
+        Write-Log -Message "Removing existing Revizto installer: $($script:reviztoMsiPath)" -Level "Info"
+        Remove-Item -Path $script:reviztoMsiPath -Force
+    }
+
+    Write-Log -Message "Downloading Revizto installer with aria2." -Level "Info"
+    $reviztoArgs = "-x 16 -s 16 -o `"$([System.IO.Path]::GetFileName($script:reviztoMsiPath))`" -d `"$([System.IO.Path]::GetDirectoryName($script:reviztoMsiPath))`" $script:reviztoUrl"
+    Start-LoggedProcess -FilePath $script:ariaExePath.FullName -Arguments $reviztoArgs -Description "Revizto download" -Wait
 
     if (-not (Test-Path -Path $script:reviztoMsiPath)) {
         throw "Revizto MSI was not downloaded to $($script:reviztoMsiPath)."
