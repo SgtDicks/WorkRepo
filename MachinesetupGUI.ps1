@@ -16,6 +16,9 @@ $script:ariaExePath = $null
 $script:bluebeamUrl = "https://www.bluebeam.com/MSIdeployx64"
 $script:bbOutputFile = "C:\apps\Bluebeam21installer.zip"
 $script:bbPath = "C:\apps\Bluebeam21installer"
+$script:reviztoUrl = "https://update.revizto.com/v5/msi64"
+$script:reviztoMsiPath = "C:\apps\Revizto_x64.msi"
+$script:reviztoLogPath = "C:\apps\ReviztoInstall.log"
 $script:mainForm = $null
 $script:logBox = $null
 $script:statusLabel = $null
@@ -672,6 +675,31 @@ function Download-Bluebeam21 {
     Start-LoggedProcess -FilePath $bbMsi.FullName -Description "Bluebeam 21 installer" -Wait
 }
 
+
+function Download-Revizto {
+    Ensure-Directory -Path $script:appsPath
+
+    Write-Log -Message "This will download and silently install Revizto." -Level "Warning"
+    if (-not (Confirm-Action -Message "Install Revizto?")) {
+        return
+    }
+
+    Write-Log -Message "Downloading Revizto installer." -Level "Info"
+    Invoke-WebRequest -Uri $script:reviztoUrl -OutFile $script:reviztoMsiPath -UseBasicParsing
+
+    if (-not (Test-Path -Path $script:reviztoMsiPath)) {
+        throw "Revizto MSI was not downloaded to $($script:reviztoMsiPath)."
+    }
+
+    Write-Log -Message "Downloaded Revizto MSI package to $($script:reviztoMsiPath)" -Level "Success"
+    Write-Log -Message "Installing Revizto silently. Log file: $($script:reviztoLogPath)" -Level "Info"
+
+    $arguments = "/i `"$($script:reviztoMsiPath)`" /qn /norestart /l*v `"$($script:reviztoLogPath)`""
+    Start-LoggedProcess -FilePath "msiexec.exe" -Arguments $arguments -Description "Revizto installer" -Wait
+
+    Write-Log -Message "Revizto installation completed." -Level "Success"
+}
+
 function Install-AdobeReader {
     Write-Log -Message "This will download and install Adobe Acrobat Reader 32-bit." -Level "Warning"
     if (-not (Confirm-Action -Message "Install Adobe Acrobat Reader 32-bit?")) {
@@ -947,6 +975,7 @@ $newPcFlow.Controls.Add((New-ActionButton -Text "Install Adobe Acrobat Reader 32
 $newPcFlow.Controls.Add((New-ActionButton -Text "Remove HP Bloatware" -OnClick { Invoke-UiAction -Name "Remove HP Bloatware" -Action { Remove-HPBloatware } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install First Focus Agent" -OnClick { Invoke-UiAction -Name "Install First Focus Agent" -Action { Download-Agent } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Bluebeam 21" -OnClick { Invoke-UiAction -Name "Install Bluebeam 21" -Action { Download-Bluebeam21 } }))
+$newPcFlow.Controls.Add((New-ActionButton -Text "Install Revizto" -OnClick { Invoke-UiAction -Name "Install Revizto" -Action { Download-Revizto } }))
 $newPcTab.Controls.Add($newPcFlow)
 
 $tabs.TabPages.Add($windowsTab)
