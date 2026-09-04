@@ -26,6 +26,8 @@ $script:clickShareLogPath = "C:\apps\ClickShare\ClickShareInstall.log"
 $script:clickShareDownloadApi = "https://data.barco.com/api/TechDoc_GetTDEFileDownloadUrl?FileNumber=R3306194&TdeType=3&CountryCode=AU&FileRevision=66&isChina=false"
 $script:clickShareFallbackUrl = "https://community.chocolatey.org/api/v2/package/clickshare-desktop/4.51.0.7"
 $script:clickShareSha256 = "f7ff17e86461210e80499da03395e360a492c88472fe595d6a2dc3a65a585e4f"
+$script:outlookClassicUrl = "https://go.microsoft.com/fwlink/?linkid=2276500&clcid=0x409"
+$script:outlookClassicInstallerPath = "C:\apps\OutlookClassicSetup.exe"
 $script:mainForm = $null
 $script:logBox = $null
 $script:statusLabel = $null
@@ -819,6 +821,36 @@ function Download-And-Install-ClickShare {
     }
 }
 
+function Download-And-Install-OutlookClassic {
+    Write-Log -Message "This will download and launch the official Microsoft classic Outlook installer." -Level "Warning"
+    if (-not (Confirm-Action -Message "Download and install classic Outlook from Microsoft?")) {
+        return
+    }
+
+    Ensure-Directory -Path $script:appsPath
+    if (Test-Path -LiteralPath $script:outlookClassicInstallerPath) {
+        Remove-Item -LiteralPath $script:outlookClassicInstallerPath -Force
+    }
+
+    Write-Log -Message "Downloading the Microsoft classic Outlook installer." -Level "Info"
+    Invoke-WebRequest -Uri $script:outlookClassicUrl -OutFile $script:outlookClassicInstallerPath -UseBasicParsing -ErrorAction Stop
+
+    if (-not (Test-Path -LiteralPath $script:outlookClassicInstallerPath)) {
+        throw "The classic Outlook installer was not downloaded."
+    }
+
+    $signature = Get-AuthenticodeSignature -LiteralPath $script:outlookClassicInstallerPath
+    $signerName = if ($signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { "No signer" }
+    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or $signerName -notmatch "Microsoft") {
+        Remove-Item -LiteralPath $script:outlookClassicInstallerPath -Force -ErrorAction SilentlyContinue
+        throw "The downloaded classic Outlook installer did not have a valid Microsoft signature and was removed. Signature status: $($signature.Status)."
+    }
+    Write-Log -Message "The classic Outlook installer has a valid Microsoft signature." -Level "Success"
+
+    Start-LoggedProcess -FilePath $script:outlookClassicInstallerPath -Description "Microsoft classic Outlook installer"
+    Write-Log -Message "The classic Outlook installer has been launched." -Level "Success"
+}
+
 function Install-AdobeReader {
     Write-Log -Message "This will download and install Adobe Acrobat Reader 32-bit." -Level "Warning"
     if (-not (Confirm-Action -Message "Install Adobe Acrobat Reader 32-bit?")) {
@@ -1303,6 +1335,7 @@ $newPcFlow.Controls.Add((New-ActionButton -Text "Install First Focus Agent" -OnC
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Bluebeam 21" -OnClick { Invoke-UiAction -Name "Install Bluebeam 21" -Action { Download-Bluebeam21 } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Revizto" -OnClick { Invoke-UiAction -Name "Install Revizto" -Action { Download-Revizto } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Barco ClickShare (Silent)" -OnClick { Invoke-UiAction -Name "Install Barco ClickShare" -Action { Download-And-Install-ClickShare } }))
+$newPcFlow.Controls.Add((New-ActionButton -Text "Install Microsoft Outlook Classic" -OnClick { Invoke-UiAction -Name "Install Microsoft Outlook Classic" -Action { Download-And-Install-OutlookClassic } }))
 $newPcTab.Controls.Add($newPcFlow)
 
 $statusTab = New-Object System.Windows.Forms.TabPage
