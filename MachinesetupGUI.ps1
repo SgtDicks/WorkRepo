@@ -24,6 +24,7 @@ $script:clickShareZipPath = "C:\apps\ClickShare\R3306194_66_ApplicationSw.zip"
 $script:clickShareExtractPath = "C:\apps\ClickShare\R3306194_66_ApplicationSw"
 $script:clickShareLogPath = "C:\apps\ClickShare\ClickShareInstall.log"
 $script:clickShareDownloadApi = "https://data.barco.com/api/TechDoc_GetTDEFileDownloadUrl?FileNumber=R3306194&TdeType=3&CountryCode=AU&FileRevision=66&isChina=false"
+$script:clickShareFallbackUrl = "https://community.chocolatey.org/api/v2/package/clickshare-desktop/4.51.0.7"
 $script:clickShareSha256 = "f7ff17e86461210e80499da03395e360a492c88472fe595d6a2dc3a65a585e4f"
 $script:mainForm = $null
 $script:logBox = $null
@@ -740,34 +741,53 @@ function Download-And-Install-ClickShare {
 
     Ensure-Directory -Path $script:clickShareFolder
 
-    Write-Log -Message "Resolving the Barco ClickShare revision 66 download URL." -Level "Info"
+    if (Test-Path -LiteralPath $script:clickShareZipPath) {
+        Remove-Item -LiteralPath $script:clickShareZipPath -Force
+    }
+
+    Write-Log -Message "Trying the official Barco ClickShare revision 66 download service." -Level "Info"
     $headers = @{
         Accept = "application/json"
         Referer = "https://www.barco.com/en/support/software/r3306194"
         "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PowerShell"
     }
+    $officialDownloadSucceeded = $false
     try {
         $downloadResponse = Invoke-RestMethod -Uri $script:clickShareDownloadApi -Headers $headers -Method Get -ErrorAction Stop
+        $downloadUrl = if ($downloadResponse.downloadUrl) {
+            [string]$downloadResponse.downloadUrl
+        } elseif ($downloadResponse -is [string] -and $downloadResponse -match "^https?://") {
+            [string]$downloadResponse
+        } else {
+            $null
+        }
+        if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
+            throw "The response did not contain a download URL."
+        }
+        Write-Log -Message "Downloading R3306194_66_ApplicationSw.zip from Barco." -Level "Info"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $script:clickShareZipPath -UseBasicParsing -ErrorAction Stop
+        $officialDownloadSucceeded = $true
     } catch {
-        throw "Barco did not provide the ClickShare download URL. The download service may be temporarily blocking automated requests. $($_.Exception.Message)"
+        Write-Log -Message "Barco's Cloudflare protection blocked the automated download. Trying the verified package fallback." -Level "Warning"
     }
 
-    $downloadUrl = if ($downloadResponse.downloadUrl) {
-        [string]$downloadResponse.downloadUrl
-    } elseif ($downloadResponse -is [string] -and $downloadResponse -match "^https?://") {
-        [string]$downloadResponse
-    } else {
-        $null
-    }
-    if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
-        throw "The Barco download service returned a response without a download URL."
-    }
+    if (-not $officialDownloadSucceeded) {
+        $packageArchive = Join-Path $script:clickShareFolder "ClickShare_4.51.0.7_Package.zip"
+        $packageExtract = Join-Path $script:clickShareFolder "ClickShare_4.51.0.7_Package"
+        Remove-Item -LiteralPath $packageArchive -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $packageExtract -Recurse -Force -ErrorAction SilentlyContinue
 
-    if (Test-Path -LiteralPath $script:clickShareZipPath) {
-        Remove-Item -LiteralPath $script:clickShareZipPath -Force
+        Write-Log -Message "Downloading the Chocolatey redistribution of the Barco ClickShare 4.51.0.7 package." -Level "Info"
+        Invoke-WebRequest -Uri $script:clickShareFallbackUrl -OutFile $packageArchive -UseBasicParsing -ErrorAction Stop
+        Expand-Archive -LiteralPath $packageArchive -DestinationPath $packageExtract -Force
+        $redistributedZip = Get-ChildItem -LiteralPath $packageExtract -Filter "R3306194_66_ApplicationSw.zip" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $redistributedZip) {
+            throw "The fallback package did not contain R3306194_66_ApplicationSw.zip."
+        }
+        Copy-Item -LiteralPath $redistributedZip.FullName -Destination $script:clickShareZipPath -Force
+        Remove-Item -LiteralPath $packageArchive -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $packageExtract -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Log -Message "Downloading R3306194_66_ApplicationSw.zip from Barco." -Level "Info"
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $script:clickShareZipPath -UseBasicParsing -ErrorAction Stop
 
     $actualHash = (Get-FileHash -LiteralPath $script:clickShareZipPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
     if ($actualHash -ne $script:clickShareSha256) {
