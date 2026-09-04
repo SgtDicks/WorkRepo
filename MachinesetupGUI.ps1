@@ -7,8 +7,8 @@ Add-Type -AssemblyName System.Drawing
 
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$script:originalScriptPath = "C:\Users\abycroft\Documents\Codex\2026-05-06\download-the-code-from-https-raw\SetupmachineTest.ps1"
 $script:appsPath = "C:\apps"
+$script:logFilePath = "C:\apps\repair_log.txt"
 $script:ariaUrl = "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip"
 $script:ariaZip = "C:\apps\aria2.zip"
 $script:ariaFolder = "C:\apps\aria2"
@@ -19,9 +19,17 @@ $script:bbPath = "C:\apps\Bluebeam21installer"
 $script:reviztoUrl = "https://update.revizto.com/v5/msi64"
 $script:reviztoMsiPath = "C:\apps\Revizto_x64.msi"
 $script:reviztoLogPath = "C:\apps\ReviztoInstall.log"
+$script:clickShareFolder = "C:\apps\ClickShare"
+$script:clickShareZipPath = "C:\apps\ClickShare\R3306194_66_ApplicationSw.zip"
+$script:clickShareExtractPath = "C:\apps\ClickShare\R3306194_66_ApplicationSw"
+$script:clickShareLogPath = "C:\apps\ClickShare\ClickShareInstall.log"
+$script:clickShareDownloadApi = "https://data.barco.com/api/TechDoc_GetTDEFileDownloadUrl?FileNumber=R3306194&TdeType=3&CountryCode=AU&FileRevision=66&isChina=false"
+$script:clickShareSha256 = "f7ff17e86461210e80499da03395e360a492c88472fe595d6a2dc3a65a585e4f"
 $script:mainForm = $null
 $script:logBox = $null
 $script:statusLabel = $null
+$script:actionButtons = New-Object System.Collections.Generic.List[System.Windows.Forms.Button]
+$script:statusValueLabels = @{}
 
 function Set-Status {
     param(
@@ -55,12 +63,7 @@ function Write-Log {
         return
     }
 
-    if (-not $script:logBox) {
-        Write-Output "[$Level] $Message"
-        return
-    }
-
-    if ($script:logBox.InvokeRequired) {
+    if ($script:logBox -and $script:logBox.InvokeRequired) {
         $text = $Message
         $severity = $Level
         $null = $script:logBox.BeginInvoke(
@@ -68,6 +71,21 @@ function Write-Log {
                 Write-Log -Message $text -Level $severity
             }
         )
+        return
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    try {
+        if (-not (Test-Path -LiteralPath $script:appsPath)) {
+            New-Item -ItemType Directory -Path $script:appsPath -Force -ErrorAction Stop | Out-Null
+        }
+        Add-Content -LiteralPath $script:logFilePath -Value "[$timestamp] [$Level] $Message" -Encoding UTF8 -ErrorAction Stop
+    } catch {
+        # File logging must never prevent a repair action from running.
+    }
+
+    if (-not $script:logBox) {
+        Write-Output "[$Level] $Message"
         return
     }
 
@@ -325,13 +343,13 @@ function Ensure-Aria2Ready {
 
 function Initialize-SupportFiles {
     Ensure-Directory -Path $script:appsPath
-    Ensure-Directory -Path $script:bbPath
-    Write-Log -Message "GUI is ready. Opened from $script:originalScriptPath" -Level "Success"
+    Add-Content -LiteralPath $script:logFilePath -Value "`r`n===== Repair Menu session started $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') =====" -Encoding UTF8
+    Write-Log -Message "Repair Menu is ready." -Level "Success"
 }
 
 function Change-PCName {
     Write-Log -Message "Changing the PC name based on the serial number." -Level "Info"
-    $serialNumber = (Get-WmiObject -Class Win32_BIOS).SerialNumber
+    $serialNumber = (Get-CimInstance -ClassName Win32_BIOS).SerialNumber
     $newPCName = "RPI-$serialNumber"
     Write-Log -Message "The new PC name will be: $newPCName" -Level "Warning"
 
@@ -575,7 +593,15 @@ function Update-Windows {
 
 function List-InstalledApps {
     Write-Log -Message "Listing installed applications. This may take some time." -Level "Info"
-    $output = Get-WmiObject -Class Win32_Product | Select-Object Name, Version | Format-Table -AutoSize | Out-String
+    $registryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+    $output = Get-ItemProperty $registryPaths -ErrorAction SilentlyContinue |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_.DisplayName) } |
+        Select-Object @{Name="Name"; Expression={$_.DisplayName}}, @{Name="Version"; Expression={$_.DisplayVersion}} -Unique |
+        Sort-Object Name | Format-Table -AutoSize | Out-String
     Write-TextBlock -Text $output -Level "Info"
 }
 
@@ -704,6 +730,73 @@ function Download-Revizto {
     Start-LoggedProcess -FilePath "msiexec.exe" -Arguments $arguments -Description "Revizto installer" -Wait
 
     Write-Log -Message "Revizto installation completed." -Level "Success"
+}
+
+function Download-And-Install-ClickShare {
+    Write-Log -Message "This will download and silently install the Barco ClickShare Desktop App." -Level "Warning"
+    if (-not (Confirm-Action -Message "Download and silently install Barco ClickShare? The Barco EULA will be accepted as part of the silent installation.")) {
+        return
+    }
+
+    Ensure-Directory -Path $script:clickShareFolder
+
+    Write-Log -Message "Resolving the Barco ClickShare revision 66 download URL." -Level "Info"
+    $headers = @{
+        Accept = "application/json"
+        Referer = "https://www.barco.com/en/support/software/r3306194"
+        "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PowerShell"
+    }
+    try {
+        $downloadResponse = Invoke-RestMethod -Uri $script:clickShareDownloadApi -Headers $headers -Method Get -ErrorAction Stop
+    } catch {
+        throw "Barco did not provide the ClickShare download URL. The download service may be temporarily blocking automated requests. $($_.Exception.Message)"
+    }
+
+    $downloadUrl = if ($downloadResponse.downloadUrl) {
+        [string]$downloadResponse.downloadUrl
+    } elseif ($downloadResponse -is [string] -and $downloadResponse -match "^https?://") {
+        [string]$downloadResponse
+    } else {
+        $null
+    }
+    if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
+        throw "The Barco download service returned a response without a download URL."
+    }
+
+    if (Test-Path -LiteralPath $script:clickShareZipPath) {
+        Remove-Item -LiteralPath $script:clickShareZipPath -Force
+    }
+    Write-Log -Message "Downloading R3306194_66_ApplicationSw.zip from Barco." -Level "Info"
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $script:clickShareZipPath -UseBasicParsing -ErrorAction Stop
+
+    $actualHash = (Get-FileHash -LiteralPath $script:clickShareZipPath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+    if ($actualHash -ne $script:clickShareSha256) {
+        Remove-Item -LiteralPath $script:clickShareZipPath -Force -ErrorAction SilentlyContinue
+        throw "The ClickShare ZIP failed its SHA-256 validation and was removed. Expected $($script:clickShareSha256), received $actualHash."
+    }
+    Write-Log -Message "ClickShare ZIP passed Barco SHA-256 validation." -Level "Success"
+
+    if (Test-Path -LiteralPath $script:clickShareExtractPath) {
+        Remove-Item -LiteralPath $script:clickShareExtractPath -Recurse -Force
+    }
+    Ensure-Directory -Path $script:clickShareExtractPath
+    Write-Log -Message "Extracting the ClickShare installation package." -Level "Info"
+    Expand-Archive -LiteralPath $script:clickShareZipPath -DestinationPath $script:clickShareExtractPath -Force
+
+    $msi = Get-ChildItem -LiteralPath $script:clickShareExtractPath -Filter "ClickShare_Installer.msi" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $msi) {
+        throw "ClickShare_Installer.msi was not found inside R3306194_66_ApplicationSw.zip."
+    }
+
+    $arguments = "/i `"$($msi.FullName)`" /qn /norestart ACCEPT_EULA=YES /l*v `"$($script:clickShareLogPath)`""
+    Write-Log -Message "Installing ClickShare silently. MSI log: $($script:clickShareLogPath)" -Level "Info"
+    $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait -PassThru
+    switch ($process.ExitCode) {
+        0 { Write-Log -Message "ClickShare silent installation completed successfully." -Level "Success" }
+        1641 { Write-Log -Message "ClickShare installed successfully and initiated a restart." -Level "Warning" }
+        3010 { Write-Log -Message "ClickShare installed successfully. A restart is required." -Level "Warning" }
+        default { throw "ClickShare installation failed with MSI exit code $($process.ExitCode). See $($script:clickShareLogPath)." }
+    }
 }
 
 function Install-AdobeReader {
@@ -841,6 +934,185 @@ function Clean-TempFiles {
     }
 }
 
+function Show-TextPrompt {
+    param(
+        [string]$Title,
+        [string]$Prompt,
+        [string]$DefaultValue = "",
+        [switch]$AllowEmpty
+    )
+
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    $value = [Microsoft.VisualBasic.Interaction]::InputBox($Prompt, $Title, $DefaultValue).Trim()
+    if (-not $AllowEmpty -and [string]::IsNullOrWhiteSpace($value)) {
+        Write-Log -Message "$Title canceled or no value entered." -Level "Warning"
+        return $null
+    }
+    return $value
+}
+
+function Ensure-ExchangeOnlineConnection {
+    $existingConnection = $null
+    if (Get-Command Get-ConnectionInformation -ErrorAction SilentlyContinue) {
+        $existingConnection = Get-ConnectionInformation -ErrorAction SilentlyContinue |
+            Where-Object { $_.State -eq "Connected" } | Select-Object -First 1
+    }
+    if ($existingConnection) {
+        Write-Log -Message "Reusing the existing Exchange Online connection." -Level "Success"
+        return
+    }
+
+    if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+        if (-not (Confirm-Action -Message "The Exchange Online PowerShell module is required. Install it for the current user?")) {
+            throw "Exchange Online PowerShell module is not installed."
+        }
+        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force -AllowClobber
+    }
+
+    Import-Module ExchangeOnlineManagement -ErrorAction Stop
+    Write-Log -Message "Exchange Online sign-in is required for this admin action." -Level "Info"
+    Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+}
+
+function Get-PrimaryCalendarIdentity {
+    param([Parameter(Mandatory)][string]$Mailbox)
+
+    $calendar = Get-MailboxFolderStatistics -Identity $Mailbox -FolderScope Calendar -ErrorAction Stop |
+        Where-Object { $_.FolderType -eq "Calendar" } | Select-Object -First 1
+    if (-not $calendar) {
+        throw "The primary calendar folder could not be found for $Mailbox."
+    }
+    $folderPath = $calendar.FolderPath -replace "/", "\"
+    return "${Mailbox}:$folderPath"
+}
+
+function Set-ExchangeCalendarAccess {
+    Ensure-ExchangeOnlineConnection
+    $mailbox = Show-TextPrompt -Title "Calendar owner" -Prompt "Enter the mailbox whose calendar will be shared:" 
+    if (-not $mailbox) { return }
+    $delegate = Show-TextPrompt -Title "Calendar viewer" -Prompt "Enter the user who needs access:" 
+    if (-not $delegate) { return }
+    $access = Show-TextPrompt -Title "Calendar permission" -Prompt "Enter an access level:`r`nAvailabilityOnly, LimitedDetails, Reviewer, Editor" -DefaultValue "Reviewer"
+    if (-not $access) { return }
+    $allowed = @("AvailabilityOnly", "LimitedDetails", "Reviewer", "Editor")
+    $access = $allowed | Where-Object { $_ -ieq $access } | Select-Object -First 1
+    if (-not $access) { throw "Invalid access level. Choose AvailabilityOnly, LimitedDetails, Reviewer, or Editor." }
+
+    $identity = Get-PrimaryCalendarIdentity -Mailbox $mailbox
+    $current = Get-MailboxFolderPermission -Identity $identity -User $delegate -ErrorAction SilentlyContinue
+    if (-not (Confirm-Action -Message "Set $delegate to $access on $mailbox's primary calendar?")) { return }
+    if ($current) {
+        Set-MailboxFolderPermission -Identity $identity -User $delegate -AccessRights $access -ErrorAction Stop
+    } else {
+        Add-MailboxFolderPermission -Identity $identity -User $delegate -AccessRights $access -ErrorAction Stop
+    }
+    Write-Log -Message "Calendar access updated: $mailbox -> $delegate ($access)." -Level "Success"
+}
+
+function Set-ExchangeMailForwarding {
+    Ensure-ExchangeOnlineConnection
+    $mailbox = Show-TextPrompt -Title "Mailbox forwarding" -Prompt "Enter the mailbox to configure:"
+    if (-not $mailbox) { return }
+    $destination = Show-TextPrompt -Title "Forwarding destination" -Prompt "Enter the forwarding email address:"
+    if (-not $destination) { return }
+    $keepCopyAnswer = Show-TextPrompt -Title "Keep mailbox copy" -Prompt "Keep a copy in the original mailbox? Enter Yes or No:" -DefaultValue "Yes"
+    if (-not $keepCopyAnswer) { return }
+    if ($keepCopyAnswer -notmatch "^(?i:y|yes|n|no)$") { throw "Enter Yes or No for keeping a mailbox copy." }
+    $keepCopy = $keepCopyAnswer -match "^(?i:y|yes)$"
+    if (-not (Confirm-Action -Message "Forward mail from $mailbox to $destination. Keep original copy: $keepCopy")) { return }
+    Set-Mailbox -Identity $mailbox -ForwardingSmtpAddress $destination -DeliverToMailboxAndForward $keepCopy -ErrorAction Stop
+    Write-Log -Message "Forwarding enabled: $mailbox -> $destination. Keep copy: $keepCopy." -Level "Success"
+}
+
+function Clear-ExchangeMailForwarding {
+    Ensure-ExchangeOnlineConnection
+    $mailbox = Show-TextPrompt -Title "Remove forwarding" -Prompt "Enter the mailbox whose forwarding should be removed:"
+    if (-not $mailbox) { return }
+    if (-not (Confirm-Action -Message "Remove all administrator-configured forwarding from $mailbox?")) { return }
+    Set-Mailbox -Identity $mailbox -ForwardingAddress $null -ForwardingSmtpAddress $null -DeliverToMailboxAndForward $false -ErrorAction Stop
+    Write-Log -Message "Forwarding removed from $mailbox." -Level "Success"
+}
+
+function Set-ExchangeOutOfOffice {
+    Ensure-ExchangeOnlineConnection
+    $mailbox = Show-TextPrompt -Title "Out of Office" -Prompt "Enter the mailbox to configure:"
+    if (-not $mailbox) { return }
+    $internalMessage = Show-TextPrompt -Title "Internal reply" -Prompt "Enter the automatic reply for internal senders:"
+    if (-not $internalMessage) { return }
+    $externalMessage = Show-TextPrompt -Title "External reply" -Prompt "Enter the automatic reply for external senders:" -DefaultValue $internalMessage
+    if (-not $externalMessage) { return }
+    if (-not (Confirm-Action -Message "Enable Out of Office replies for $mailbox until manually disabled?")) { return }
+    Set-MailboxAutoReplyConfiguration -Identity $mailbox -AutoReplyState Enabled -InternalMessage $internalMessage -ExternalMessage $externalMessage -ExternalAudience All -ErrorAction Stop
+    Write-Log -Message "Out of Office enabled for $mailbox." -Level "Success"
+}
+
+function Disable-ExchangeOutOfOffice {
+    Ensure-ExchangeOnlineConnection
+    $mailbox = Show-TextPrompt -Title "Disable Out of Office" -Prompt "Enter the mailbox to update:"
+    if (-not $mailbox) { return }
+    if (-not (Confirm-Action -Message "Disable Out of Office replies for $mailbox?")) { return }
+    Set-MailboxAutoReplyConfiguration -Identity $mailbox -AutoReplyState Disabled -ErrorAction Stop
+    Write-Log -Message "Out of Office disabled for $mailbox." -Level "Success"
+}
+
+function Set-StatusValue {
+    param([string]$Name, [string]$Value, [ValidateSet("Good", "Warning", "Bad", "Neutral")][string]$State = "Neutral")
+    if (-not $script:statusValueLabels.ContainsKey($Name)) { return }
+    $label = $script:statusValueLabels[$Name]
+    $label.Text = $Value
+    $label.ForeColor = switch ($State) {
+        "Good" { [System.Drawing.Color]::ForestGreen }
+        "Warning" { [System.Drawing.Color]::DarkOrange }
+        "Bad" { [System.Drawing.Color]::Firebrick }
+        default { [System.Drawing.Color]::DimGray }
+    }
+}
+
+function Update-DeviceStatus {
+    Write-Log -Message "Refreshing device status." -Level "Info"
+
+    try {
+        $bitLocker = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop
+        $protected = $bitLocker.ProtectionStatus -eq "On"
+        Set-StatusValue "BitLocker" "$($bitLocker.VolumeStatus) / Protection $($bitLocker.ProtectionStatus)" $(if ($protected) { "Good" } else { "Warning" })
+    } catch { Set-StatusValue "BitLocker" "Unavailable: $($_.Exception.Message)" "Warning" }
+
+    try {
+        $license = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%' and PartialProductKey is not null" |
+            Sort-Object LicenseStatus -Descending | Select-Object -First 1
+        $activated = $license.LicenseStatus -eq 1
+        Set-StatusValue "Activation" $(if ($activated) { "Activated" } else { "Not activated (status $($license.LicenseStatus))" }) $(if ($activated) { "Good" } else { "Bad" })
+    } catch { Set-StatusValue "Activation" "Unavailable" "Warning" }
+
+    try {
+        $computer = Get-CimInstance Win32_ComputerSystem
+        Set-StatusValue "Domain" $(if ($computer.PartOfDomain) { "Joined: $($computer.Domain)" } else { "Not domain joined" }) $(if ($computer.PartOfDomain) { "Good" } else { "Warning" })
+    } catch { Set-StatusValue "Domain" "Unavailable" "Warning" }
+
+    try {
+        $dsreg = (& dsregcmd.exe /status 2>&1 | Out-String)
+        $entraJoined = $dsreg -match "AzureAdJoined\s*:\s*YES"
+        Set-StatusValue "Entra" $(if ($entraJoined) { "Microsoft Entra joined" } else { "Not Microsoft Entra joined" }) $(if ($entraJoined) { "Good" } else { "Warning" })
+    } catch { Set-StatusValue "Entra" "Unavailable" "Warning" }
+
+    try {
+        $enrollments = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction Stop | Where-Object {
+            (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ProviderID -eq "MS DM Server"
+        }
+        Set-StatusValue "Intune" $(if ($enrollments) { "MDM enrollment found" } else { "No Intune MDM enrollment found" }) $(if ($enrollments) { "Good" } else { "Warning" })
+    } catch { Set-StatusValue "Intune" "Unavailable" "Warning" }
+
+    try {
+        $rebootRequired = (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") -or
+            (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending")
+        $lastUpdate = Get-HotFix -ErrorAction SilentlyContinue | Sort-Object InstalledOn -Descending | Select-Object -First 1
+        $updateText = if ($lastUpdate) { "Last installed: $($lastUpdate.HotFixID) on $($lastUpdate.InstalledOn.ToString('yyyy-MM-dd'))" } else { "No update history found" }
+        if ($rebootRequired) { $updateText += " / Restart required" }
+        Set-StatusValue "Windows Update" $updateText $(if ($rebootRequired) { "Warning" } else { "Good" })
+    } catch { Set-StatusValue "Windows Update" "Unavailable" "Warning" }
+    Write-Log -Message "Device status refreshed." -Level "Success"
+}
+
 function New-ActionButton {
     param(
         [string]$Text,
@@ -858,6 +1130,7 @@ function New-ActionButton {
     $button.Font = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
     $button.Cursor = [System.Windows.Forms.Cursors]::Hand
     $button.Add_Click($OnClick)
+    $script:actionButtons.Add($button)
     return $button
 }
 
@@ -906,7 +1179,7 @@ $titleLabel.AutoSize = $true
 $titleLabel.Location = New-Object System.Drawing.Point(18, 14)
 
 $subtitleLabel = New-Object System.Windows.Forms.Label
-$subtitleLabel.Text = "GUI wrapper for the existing PowerShell repair and setup actions."
+$subtitleLabel.Text = "Windows repair, provisioning and Microsoft 365 administration tools."
 $subtitleLabel.ForeColor = [System.Drawing.Color]::LightSteelBlue
 $subtitleLabel.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 $subtitleLabel.AutoSize = $true
@@ -914,6 +1187,27 @@ $subtitleLabel.Location = New-Object System.Drawing.Point(20, 46)
 
 $headerPanel.Controls.Add($titleLabel)
 $headerPanel.Controls.Add($subtitleLabel)
+
+$searchPanel = New-Object System.Windows.Forms.Panel
+$searchPanel.Dock = [System.Windows.Forms.DockStyle]::Top
+$searchPanel.Height = 48
+$searchPanel.Padding = New-Object System.Windows.Forms.Padding(18, 9, 18, 7)
+$searchPanel.BackColor = [System.Drawing.Color]::FromArgb(232, 236, 242)
+
+$searchLabel = New-Object System.Windows.Forms.Label
+$searchLabel.Text = "Search actions:"
+$searchLabel.AutoSize = $true
+$searchLabel.Location = New-Object System.Drawing.Point(18, 15)
+$searchLabel.Font = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
+
+$searchBox = New-Object System.Windows.Forms.TextBox
+$searchBox.Location = New-Object System.Drawing.Point(125, 11)
+$searchBox.Width = 510
+$searchBox.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+$searchBox.Anchor = [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right -bor [System.Windows.Forms.AnchorStyles]::Top
+
+$searchPanel.Controls.Add($searchLabel)
+$searchPanel.Controls.Add($searchBox)
 
 $splitContainer = New-Object System.Windows.Forms.SplitContainer
 $splitContainer.Dock = [System.Windows.Forms.DockStyle]::Fill
@@ -982,12 +1276,85 @@ $newPcFlow.Controls.Add((New-ActionButton -Text "Remove HP Bloatware" -OnClick {
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install First Focus Agent" -OnClick { Invoke-UiAction -Name "Install First Focus Agent" -Action { Download-Agent } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Bluebeam 21" -OnClick { Invoke-UiAction -Name "Install Bluebeam 21" -Action { Download-Bluebeam21 } }))
 $newPcFlow.Controls.Add((New-ActionButton -Text "Install Revizto" -OnClick { Invoke-UiAction -Name "Install Revizto" -Action { Download-Revizto } }))
+$newPcFlow.Controls.Add((New-ActionButton -Text "Install Barco ClickShare (Silent)" -OnClick { Invoke-UiAction -Name "Install Barco ClickShare" -Action { Download-And-Install-ClickShare } }))
 $newPcTab.Controls.Add($newPcFlow)
+
+$statusTab = New-Object System.Windows.Forms.TabPage
+$statusTab.Text = "Device Status"
+$statusPanel = New-Object System.Windows.Forms.TableLayoutPanel
+$statusPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$statusPanel.AutoScroll = $true
+$statusPanel.Padding = New-Object System.Windows.Forms.Padding(20)
+$statusPanel.BackColor = [System.Drawing.Color]::WhiteSmoke
+$statusPanel.ColumnCount = 2
+$statusPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 150)))
+$statusPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+$statusPanel.RowCount = 0
+
+foreach ($statusName in @("BitLocker", "Activation", "Domain", "Entra", "Intune", "Windows Update")) {
+    $row = $statusPanel.RowCount
+    $statusPanel.RowCount++
+    $statusPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 46)))
+    $nameLabel = New-Object System.Windows.Forms.Label
+    $nameLabel.Text = $statusName
+    $nameLabel.Font = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
+    $nameLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $nameLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+    $valueLabel = New-Object System.Windows.Forms.Label
+    $valueLabel.Text = "Not checked"
+    $valueLabel.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+    $valueLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $valueLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+    $statusPanel.Controls.Add($nameLabel, 0, $row)
+    $statusPanel.Controls.Add($valueLabel, 1, $row)
+    $script:statusValueLabels[$statusName] = $valueLabel
+}
+$statusPanel.RowCount++
+$statusPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 55)))
+$refreshStatusButton = New-ActionButton -Text "Refresh Device Status" -OnClick { Invoke-UiAction -Name "Refresh Device Status" -Action { Update-DeviceStatus } }
+$refreshStatusButton.Width = 250
+$statusPanel.Controls.Add($refreshStatusButton, 0, $statusPanel.RowCount - 1)
+$statusPanel.SetColumnSpan($refreshStatusButton, 2)
+$statusTab.Controls.Add($statusPanel)
+
+$adminTab = New-Object System.Windows.Forms.TabPage
+$adminTab.Text = "Admin Scripts"
+$adminFlow = New-TabFlowPanel
+$adminFlow.Controls.Add((New-SectionLabel -Text "Exchange Online"))
+$adminInfo = New-Object System.Windows.Forms.Label
+$adminInfo.Text = "Microsoft 365 sign-in is requested only when one of these Exchange actions is run. An existing connection is reused."
+$adminInfo.AutoSize = $true
+$adminInfo.MaximumSize = New-Object System.Drawing.Size(620, 0)
+$adminInfo.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 12)
+$adminInfo.ForeColor = [System.Drawing.Color]::DimGray
+$adminFlow.Controls.Add($adminInfo)
+$adminFlow.Controls.Add((New-ActionButton -Text "Set User Calendar Permission" -OnClick { Invoke-UiAction -Name "Set User Calendar Permission" -Action { Set-ExchangeCalendarAccess } }))
+$adminFlow.Controls.Add((New-ActionButton -Text "Configure Mail Forwarding" -OnClick { Invoke-UiAction -Name "Configure Mail Forwarding" -Action { Set-ExchangeMailForwarding } }))
+$adminFlow.Controls.Add((New-ActionButton -Text "Remove Mail Forwarding" -OnClick { Invoke-UiAction -Name "Remove Mail Forwarding" -Action { Clear-ExchangeMailForwarding } }))
+$adminFlow.Controls.Add((New-ActionButton -Text "Enable Out of Office" -OnClick { Invoke-UiAction -Name "Enable Out of Office" -Action { Set-ExchangeOutOfOffice } }))
+$adminFlow.Controls.Add((New-ActionButton -Text "Disable Out of Office" -OnClick { Invoke-UiAction -Name "Disable Out of Office" -Action { Disable-ExchangeOutOfOffice } }))
+$adminTab.Controls.Add($adminFlow)
 
 $tabs.TabPages.Add($windowsTab)
 $tabs.TabPages.Add($officeTab)
 $tabs.TabPages.Add($userTasksTab)
 $tabs.TabPages.Add($newPcTab)
+$tabs.TabPages.Add($statusTab)
+$tabs.TabPages.Add($adminTab)
+
+$searchBox.Add_TextChanged({
+    $query = $searchBox.Text.Trim()
+    $firstMatchingTab = $null
+    foreach ($button in $script:actionButtons) {
+        $button.Visible = [string]::IsNullOrWhiteSpace($query) -or $button.Text.IndexOf($query, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+        if ($button.Visible -and -not [string]::IsNullOrWhiteSpace($query) -and -not $firstMatchingTab) {
+            $parent = $button.Parent
+            while ($parent -and $parent -isnot [System.Windows.Forms.TabPage]) { $parent = $parent.Parent }
+            if ($parent -is [System.Windows.Forms.TabPage]) { $firstMatchingTab = $parent }
+        }
+    }
+    if ($firstMatchingTab) { $tabs.SelectedTab = $firstMatchingTab }
+})
 
 $splitContainer.Panel1.Controls.Add($tabs)
 
@@ -1029,22 +1396,8 @@ $openAppsButton.Add_Click({
     }
 })
 
-$openOriginalButton = New-Object System.Windows.Forms.Button
-$openOriginalButton.Text = "Open Original Script"
-$openOriginalButton.Width = 150
-$openOriginalButton.Height = 28
-$openOriginalButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-$openOriginalButton.BackColor = [System.Drawing.Color]::FromArgb(56, 117, 215)
-$openOriginalButton.ForeColor = [System.Drawing.Color]::White
-$openOriginalButton.Add_Click({
-    Invoke-UiAction -Name "Open Original Script" -Action {
-        Start-LoggedProcess -FilePath "notepad.exe" -Arguments $script:originalScriptPath -Description "Original script"
-    }
-})
-
 $logToolbar.Controls.Add($clearLogButton)
 $logToolbar.Controls.Add($openAppsButton)
-$logToolbar.Controls.Add($openOriginalButton)
 
 $script:logBox = New-Object System.Windows.Forms.RichTextBox
 $script:logBox.Dock = [System.Windows.Forms.DockStyle]::Fill
@@ -1067,6 +1420,7 @@ $script:statusLabel.Text = "Ready"
 $statusStrip.Items.Add($script:statusLabel) | Out-Null
 
 $script:mainForm.Controls.Add($splitContainer)
+$script:mainForm.Controls.Add($searchPanel)
 $script:mainForm.Controls.Add($headerPanel)
 $script:mainForm.Controls.Add($statusStrip)
 
@@ -1074,6 +1428,7 @@ $script:mainForm.Add_Shown({
     try {
         Set-Status -Message "Initializing support folders"
         Initialize-SupportFiles
+        Update-DeviceStatus
         Set-Status -Message "Ready"
     } catch {
         Write-Log -Message "Initialization failed. $($_.Exception.Message)" -Level "Error"
