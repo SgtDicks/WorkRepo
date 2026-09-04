@@ -1071,12 +1071,14 @@ function Set-StatusValue {
 function Update-DeviceStatus {
     Write-Log -Message "Refreshing device status." -Level "Info"
 
+    Set-Status -Message "Checking status: BitLocker"
     try {
         $bitLocker = Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop
         $protected = $bitLocker.ProtectionStatus -eq "On"
         Set-StatusValue "BitLocker" "$($bitLocker.VolumeStatus) / Protection $($bitLocker.ProtectionStatus)" $(if ($protected) { "Good" } else { "Warning" })
     } catch { Set-StatusValue "BitLocker" "Unavailable: $($_.Exception.Message)" "Warning" }
 
+    Set-Status -Message "Checking status: Windows activation"
     try {
         $license = Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%' and PartialProductKey is not null" |
             Sort-Object LicenseStatus -Descending | Select-Object -First 1
@@ -1084,17 +1086,20 @@ function Update-DeviceStatus {
         Set-StatusValue "Activation" $(if ($activated) { "Activated" } else { "Not activated (status $($license.LicenseStatus))" }) $(if ($activated) { "Good" } else { "Bad" })
     } catch { Set-StatusValue "Activation" "Unavailable" "Warning" }
 
+    Set-Status -Message "Checking status: Domain"
     try {
         $computer = Get-CimInstance Win32_ComputerSystem
         Set-StatusValue "Domain" $(if ($computer.PartOfDomain) { "Joined: $($computer.Domain)" } else { "Not domain joined" }) $(if ($computer.PartOfDomain) { "Good" } else { "Warning" })
     } catch { Set-StatusValue "Domain" "Unavailable" "Warning" }
 
+    Set-Status -Message "Checking status: Microsoft Entra"
     try {
         $dsreg = (& dsregcmd.exe /status 2>&1 | Out-String)
         $entraJoined = $dsreg -match "AzureAdJoined\s*:\s*YES"
         Set-StatusValue "Entra" $(if ($entraJoined) { "Microsoft Entra joined" } else { "Not Microsoft Entra joined" }) $(if ($entraJoined) { "Good" } else { "Warning" })
     } catch { Set-StatusValue "Entra" "Unavailable" "Warning" }
 
+    Set-Status -Message "Checking status: Intune"
     try {
         $enrollments = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction Stop | Where-Object {
             (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ProviderID -eq "MS DM Server"
@@ -1102,6 +1107,7 @@ function Update-DeviceStatus {
         Set-StatusValue "Intune" $(if ($enrollments) { "MDM enrollment found" } else { "No Intune MDM enrollment found" }) $(if ($enrollments) { "Good" } else { "Warning" })
     } catch { Set-StatusValue "Intune" "Unavailable" "Warning" }
 
+    Set-Status -Message "Checking status: Windows Update"
     try {
         $rebootRequired = (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") -or
             (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending")
@@ -1428,8 +1434,8 @@ $script:mainForm.Add_Shown({
     try {
         Set-Status -Message "Initializing support folders"
         Initialize-SupportFiles
-        Update-DeviceStatus
         Set-Status -Message "Ready"
+        Write-Log -Message "Device status checks are available from the Device Status tab." -Level "Info"
     } catch {
         Write-Log -Message "Initialization failed. $($_.Exception.Message)" -Level "Error"
         Set-Status -Message "Initialization failed"
